@@ -443,7 +443,7 @@ async function handleNewsletter() {
   }
 
   try {
-    const res  = await fetch('/api/newsletter-subscribe', {
+    const res  = await fetch(apiBase() + '/api/newsletter-subscribe', {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify({ email, name }),
@@ -1517,13 +1517,33 @@ async function changeEmail() {
     _showSecMsg(msg, 'error', 'Please enter a valid email address.');
     return;
   }
+  const btn = document.querySelector('button[onclick="changeEmail()"]');
+  if (btn) { btn.textContent = 'Sending…'; btn.disabled = true; }
   try {
+    // Update email via Supabase Auth
+    // Note: Supabase sends a confirmation link to the NEW email.
+    // The change only takes effect after the user clicks that link.
     const { error } = await client.auth.updateUser({ email: newEmail });
     if (error) throw new Error(error.message);
-    _showSecMsg(msg, 'success', '✅ Check your new email inbox for a confirmation link.');
+
+    // Log to user_credentials audit table (non-blocking)
+    try {
+      await fetch(apiBase() + '/api/update-credentials', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ user_id: AUTH.user?.id, email: newEmail, action: 'email' }),
+      });
+    } catch {}
+
+    _showSecMsg(msg, 'success', '✅ Confirmation link sent to ' + newEmail + '. Click it to confirm the change.');
     document.getElementById('new-email-inp').value = '';
   } catch(err) {
-    _showSecMsg(msg, 'error', 'Error: ' + err.message);
+    // Supabase requires SMTP to send the confirmation email.
+    // On Netlify, client.auth.updateUser sends directly via Supabase's own email service —
+    // this should work as long as Supabase email is enabled in your project.
+    _showSecMsg(msg, 'error', 'Error: ' + err.message + '. Make sure email confirmations are enabled in your Supabase project (Auth → Settings → Enable email confirmations).');
+  } finally {
+    if (btn) { btn.textContent = 'Update Email'; btn.disabled = false; }
   }
 }
 
@@ -1534,14 +1554,28 @@ async function changePassword() {
     _showSecMsg(msg, 'error', 'Password must be at least 6 characters.');
     return;
   }
+  const btn = document.querySelector('button[onclick="changePassword()"]');
+  if (btn) { btn.textContent = 'Updating…'; btn.disabled = true; }
   try {
     const { error } = await client.auth.updateUser({ password: newPwd });
     if (error) throw new Error(error.message);
+
+    // Log to user_credentials audit table (non-blocking)
+    try {
+      await fetch(apiBase() + '/api/update-credentials', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ user_id: AUTH.user?.id, email: AUTH.user?.email, action: 'password' }),
+      });
+    } catch {}
+
     _showSecMsg(msg, 'success', '✅ Password updated successfully!');
     document.getElementById('new-password-inp').value = '';
     showToast('✅ Password changed!');
   } catch(err) {
     _showSecMsg(msg, 'error', 'Error: ' + err.message);
+  } finally {
+    if (btn) { btn.textContent = 'Update Password'; btn.disabled = false; }
   }
 }
 
@@ -1573,7 +1607,7 @@ async function saveProfileChanges() {
   if (btn) { btn.textContent='Saving…'; btn.disabled=true; }
 
   try {
-    const res = await fetch('/api/update-profile', {
+    const res = await fetch(apiBase() + '/api/update-profile', {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify({ user_id: AUTH.user?.id, name, phone }),

@@ -1838,8 +1838,8 @@ async function renderDiscounts(search='') {
             oninput="this.value=this.value.toUpperCase()" />
         </div>
         <div>
-          <div style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--brown-lt);margin-bottom:0.3rem">Customer Email</div>
-          <input id="new-code-email" type="email" placeholder="customer@email.com"
+          <div style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--brown-lt);margin-bottom:0.3rem">Customer Email <em style="font-size:0.68rem;text-transform:none">(optional — blank = all customers)</em></div>
+          <input id="new-code-email" type="text" placeholder="Leave blank for all customers"
             style="width:100%;padding:0.6rem 0.8rem;border:1px solid var(--cream-dk);background:var(--cream);font-size:0.9rem;color:var(--brown);outline:none" />
         </div>
         <div>
@@ -2046,7 +2046,9 @@ async function createDiscountCode() {
   const codeType  = document.getElementById('new-code-type')?.value || 'single';
   const isReusable = codeType === 'reusable';
 
-  if (!code || !email) { toast('❌ Code and email are required'); return; }
+  // email is optional — blank means usable by any customer
+  const emailVal = email || 'all';
+  if (!code) { toast('❌ Code is required'); return; }
   if (!code.match(/^[A-Z0-9]+$/)) { toast('❌ Code must be letters/numbers only'); return; }
   if (pct < 1 || pct > 99) { toast('❌ Discount must be 1–99%'); return; }
 
@@ -2057,7 +2059,7 @@ async function createDiscountCode() {
 
   const result = await sbQuery('POST', '/rest/v1/discount_codes', {
     code,
-    user_email:       email,
+    user_email:       emailVal,
     discount_percent: pct,
     is_used:          false,
     reusable:         isReusable,

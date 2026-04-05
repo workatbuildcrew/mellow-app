@@ -2,11 +2,13 @@
  * Mellow Co. — Netlify Serverless Function
  * File: netlify/functions/api.js
  *
- * EMAIL: Gmail SMTP via nodemailer (App Password).
- *        No Resend. No third-party email service.
- *
- * SECRETS: Read from Netlify Environment Variables only.
- *          Never hardcoded here.
+ * FIXES IN THIS VERSION:
+ *  1. Email: Gmail SMTP via nodemailer only (no Resend)
+ *  2. validate-discount: works for ALL codes (reusable + admin-created for any customer)
+ *  3. use-discount: respects reusable flag correctly
+ *  4. update-credentials: logs email/password changes to user_credentials table
+ *  5. Route parsing: handles both Netlify rewrite patterns correctly
+ *  6. All secrets from process.env only — nothing hardcoded
  */
 
 const https      = require('https');
@@ -14,36 +16,35 @@ const crypto     = require('crypto');
 const nodemailer = require('nodemailer');
 
 // ═══════════════════════════════════════════════════════════
-//  SECRETS — set in Netlify Dashboard →
+//  SECRETS — set ALL of these in Netlify Dashboard:
 //  Site Settings → Environment Variables
 // ═══════════════════════════════════════════════════════════
 const RAZORPAY_KEY_ID     = process.env.RAZORPAY_KEY_ID;
 const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET;
 const SUPABASE_URL        = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE    = process.env.SUPABASE_SERVICE;
-const SMTP_EMAIL          = process.env.SMTP_EMAIL;     // your Gmail address
-const SMTP_PASSWORD       = process.env.SMTP_PASSWORD;  // Gmail App Password (16 chars)
+const SMTP_EMAIL          = process.env.SMTP_EMAIL;
+const SMTP_PASSWORD       = process.env.SMTP_PASSWORD;
 const FROM_NAME           = 'Mellow Co.';
 
 // ═══════════════════════════════════════════════════════════
-//  GMAIL SMTP — send email via nodemailer
+//  GMAIL SMTP — send via nodemailer (port 465 → 587 fallback)
 // ═══════════════════════════════════════════════════════════
 async function sendEmail(to, subject, html) {
   if (!SMTP_EMAIL || !SMTP_PASSWORD) {
-    console.error('❌ SMTP_EMAIL or SMTP_PASSWORD env var not set');
+    console.error('❌ SMTP_EMAIL or SMTP_PASSWORD not set in env vars');
     return { ok: false, error: 'SMTP credentials not configured' };
   }
 
-  // Try port 465 (SSL) first — most reliable on cloud servers
-  const transports = [
+  const configs = [
     { host: 'smtp.gmail.com', port: 465, secure: true },
     { host: 'smtp.gmail.com', port: 587, secure: false },
   ];
 
-  for (const transport of transports) {
+  for (const cfg of configs) {
     try {
       const transporter = nodemailer.createTransport({
-        ...transport,
+        ...cfg,
         auth: { user: SMTP_EMAIL, pass: SMTP_PASSWORD },
         tls:  { rejectUnauthorized: false },
       });
@@ -51,15 +52,14 @@ async function sendEmail(to, subject, html) {
         from:    `"${FROM_NAME}" <${SMTP_EMAIL}>`,
         to, subject, html,
       });
-      console.log(`✅ Email sent (port ${transport.port}) → ${to}`);
+      console.log(`✅ Email sent (port ${cfg.port}) → ${to}`);
       return { ok: true };
-    } catch (err) {
-      console.warn(`Port ${transport.port} failed:`, err.message);
+    } catch (e) {
+      console.warn(`Port ${cfg.port} failed:`, e.message);
     }
   }
-
-  console.error(`❌ All SMTP ports failed for ${to}`);
-  return { ok: false, error: 'SMTP send failed on all ports' };
+  console.error(`❌ All SMTP ports failed → ${to}`);
+  return { ok: false, error: 'SMTP failed on all ports — check App Password' };
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -69,14 +69,13 @@ function supabaseRequest(method, path, body, prefer) {
   return new Promise((resolve, reject) => {
     const payload = body ? JSON.stringify(body) : null;
     const host    = SUPABASE_URL.replace('https://', '');
-
-    const hdrs = {
+    const hdrs    = {
       'Content-Type':  'application/json',
       'apikey':        SUPABASE_SERVICE,
       'Authorization': `Bearer ${SUPABASE_SERVICE}`,
     };
-    if (payload)       hdrs['Content-Length'] = Buffer.byteLength(payload);
-    if (method !== 'GET') hdrs['Prefer']      = prefer || 'return=minimal';
+    if (payload)          hdrs['Content-Length'] = Buffer.byteLength(payload);
+    if (method !== 'GET') hdrs['Prefer']         = prefer || 'return=minimal';
 
     const req = https.request(
       { hostname: host, path, method, headers: hdrs },
@@ -136,7 +135,7 @@ const ORDER_COLUMNS = new Set([
 ]);
 
 // ═══════════════════════════════════════════════════════════
-//  NEWSLETTER EMAIL HTML (built server-side for /api/newsletter-subscribe)
+//  NEWSLETTER EMAIL HTML
 // ═══════════════════════════════════════════════════════════
 function buildNewsletterEmail(name, email, code, pct) {
   return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/></head>
@@ -145,34 +144,27 @@ function buildNewsletterEmail(name, email, code, pct) {
 <table width="600" cellpadding="0" cellspacing="0"
        style="background:#fffef8;border:1px solid #e8dfd0;border-top:4px solid #c8a96e;max-width:600px">
   <tr><td style="background:linear-gradient(135deg,#4a2c0a 0%,#7a4f2a 60%,#4a2c0a 100%);padding:32px 36px">
-    <h1 style="margin:0;color:#fffef8;font-size:28px;font-family:'Georgia',serif">
-      Mellow <span style="color:#c8a96e;font-style:italic">Co.</span></h1>
-    <p style="margin:6px 0 0;color:rgba(200,169,110,0.75);font-size:11px;letter-spacing:4px;text-transform:uppercase">
-      ✦ &nbsp; Welcome to the Mellow Circle &nbsp; ✦</p>
+    <h1 style="margin:0;color:#fffef8;font-size:28px;font-family:'Georgia',serif">Mellow <span style="color:#c8a96e;font-style:italic">Co.</span></h1>
+    <p style="margin:6px 0 0;color:rgba(200,169,110,0.75);font-size:11px;letter-spacing:4px;text-transform:uppercase">✦ &nbsp; Welcome to the Mellow Circle &nbsp; ✦</p>
   </td></tr>
   <tr><td style="height:3px;background:linear-gradient(90deg,#c8a96e,#9d7a45,#c8a96e)"></td></tr>
   <tr><td style="padding:40px 36px">
     <h2 style="margin:0 0 16px;color:#4a2c0a;font-size:24px;font-family:'Georgia',serif">Hello, ${name}! 🍮</h2>
     <p style="color:#7a4f2a;font-size:15px;line-height:1.9;margin:0 0 28px">
-      Thank you for subscribing. Here is your exclusive
-      <strong style="color:#4a2c0a">${pct}% off</strong> discount code:
+      Thank you for subscribing. Here is your exclusive <strong style="color:#4a2c0a">${pct}% off</strong> discount code:
     </p>
     <div style="text-align:center;background:#fff8e8;border:2px dashed #c8a96e;padding:24px;margin-bottom:28px;border-radius:6px">
-      <div style="font-size:11px;letter-spacing:3px;text-transform:uppercase;color:#a67c52;margin-bottom:10px">
-        Your Exclusive Discount Code</div>
-      <div style="font-size:32px;font-weight:900;color:#4a2c0a;letter-spacing:4px;font-family:'Georgia',serif">
-        ${code}</div>
-      <div style="font-size:13px;color:#7a4f2a;margin-top:10px">
-        ${pct}% off &nbsp;·&nbsp; One-time use &nbsp;·&nbsp; Valid 30 days</div>
+      <div style="font-size:11px;letter-spacing:3px;text-transform:uppercase;color:#a67c52;margin-bottom:10px">Your Exclusive Discount Code</div>
+      <div style="font-size:32px;font-weight:900;color:#4a2c0a;letter-spacing:4px;font-family:'Georgia',serif">${code}</div>
+      <div style="font-size:13px;color:#7a4f2a;margin-top:10px">${pct}% off &nbsp;·&nbsp; One-time use &nbsp;·&nbsp; Valid 30 days</div>
     </div>
     <a href="https://mellow-co.netlify.app"
-       style="display:inline-block;background:#4a2c0a;color:#fffef8;padding:14px 32px;
-              text-decoration:none;font-size:14px;letter-spacing:2px;text-transform:uppercase;
-              border:1px solid #c8a96e;font-family:'Georgia',serif">Shop Now →</a>
+       style="display:inline-block;background:#4a2c0a;color:#fffef8;padding:14px 32px;text-decoration:none;font-size:14px;letter-spacing:2px;text-transform:uppercase;border:1px solid #c8a96e;font-family:'Georgia',serif">
+      Shop Now →
+    </a>
   </td></tr>
   <tr><td style="padding:20px 36px 28px;border-top:1px solid #e8dfd0;background:#f9f6f0;text-align:center">
-    <p style="margin:0;font-size:11px;color:#a67c52;letter-spacing:2px;text-transform:uppercase">
-      ✦ &nbsp; Mellow Co. &nbsp;·&nbsp; Coimbatore, Tamil Nadu &nbsp; ✦</p>
+    <p style="margin:0;font-size:11px;color:#a67c52;letter-spacing:2px;text-transform:uppercase">✦ &nbsp; Mellow Co. &nbsp;·&nbsp; Coimbatore, Tamil Nadu &nbsp; ✦</p>
     <p style="margin:8px 0 0;font-size:10px;color:#c0a882">You subscribed with ${email}</p>
   </td></tr>
 </table></td></tr></table></body></html>`;
@@ -194,24 +186,25 @@ exports.handler = async function(event) {
   }
 
   // ── Route extraction ──────────────────────────────────────
-  // netlify.toml: /api/* → /.netlify/functions/api/:splat
-  // event.path arrives as /.netlify/functions/api/create-order
-  //   OR as /api/create-order depending on Netlify version.
+  // netlify.toml redirects /api/* → /.netlify/functions/api/:splat
+  // event.path arrives as /.netlify/functions/api/save-order
+  // OR as /api/save-order depending on Netlify version
   const rawPath = event.path || '';
   let route;
   if (rawPath.startsWith('/api/')) {
     route = rawPath;
   } else {
-    // strip /.netlify/functions/api prefix, re-prefix with /api
     const after = rawPath.replace(/^\/.netlify\/functions\/api/, '');
     route = after ? `/api${after}` : '/api/';
   }
+  // Strip query string from route
+  route = route.split('?')[0];
 
   let body = {};
   try { body = event.body ? JSON.parse(event.body) : {}; } catch {}
 
-  const ok  = data       => ({ statusCode: 200, headers, body: JSON.stringify(data) });
-  const err = (code, d)  => ({ statusCode: code, headers, body: JSON.stringify(d) });
+  const ok  = data      => ({ statusCode: 200, headers, body: JSON.stringify(data) });
+  const err = (code, d) => ({ statusCode: code, headers, body: JSON.stringify(d) });
 
   console.log(`[Mellow API] ${event.httpMethod} ${route}`);
 
@@ -291,24 +284,30 @@ exports.handler = async function(event) {
     }
 
     // ── 7. VALIDATE DISCOUNT ──────────────────────────────
+    // FIX: Do NOT filter by is_used or user_email here.
+    //      Fetch the code and check logic server-side.
+    //      This makes admin-created codes work for ALL customers,
+    //      and lets reusable codes validate correctly every time.
     if (route === '/api/validate-discount') {
       const code = (body.code || '').trim().toUpperCase();
       if (!code) return err(400, { valid: false, error: 'No code provided' });
 
-      // Fetch regardless of is_used — reusable codes stay valid after use
+      // Fetch by code only — no is_used filter (we check it below)
       const r = await supabaseRequest(
         'GET',
         `/rest/v1/discount_codes?code=eq.${encodeURIComponent(code)}&select=*`
       );
       const rows = Array.isArray(r.body) ? r.body : [];
-      if (!rows.length) return ok({ valid: false, error: 'Invalid or already used code' });
+      if (!rows.length) return ok({ valid: false, error: 'Invalid discount code' });
 
       const row        = rows[0];
       const isReusable = row.reusable === true;
 
+      // Single-use: reject if already used
       if (!isReusable && row.is_used) {
         return ok({ valid: false, error: 'This code has already been used' });
       }
+      // Check expiry
       if (row.expires_at && new Date(row.expires_at) < new Date()) {
         return ok({ valid: false, error: 'This discount code has expired' });
       }
@@ -327,30 +326,30 @@ exports.handler = async function(event) {
       const code = (body.code || '').trim().toUpperCase();
       if (!code) return err(400, { error: 'No code provided' });
 
-      // Check reusable flag first
+      // Fetch to check reusable flag
       const r0   = await supabaseRequest(
         'GET',
         `/rest/v1/discount_codes?code=eq.${encodeURIComponent(code)}&select=id,reusable`
       );
       const rows = Array.isArray(r0.body) ? r0.body : [];
-      if (!rows.length) return ok({ ok: true, skipped: 'not found' });
+      if (!rows.length) return ok({ ok: true, skipped: 'code not found' });
 
       if (rows[0].reusable === true) {
-        console.log(`♾  Reusable discount kept active: ${code}`);
+        console.log(`♾  Reusable code kept active: ${code}`);
         return ok({ ok: true });
       }
 
+      // Single-use: mark as used
       const r = await supabaseRequest(
         'PATCH',
         `/rest/v1/discount_codes?code=eq.${encodeURIComponent(code)}`,
         { is_used: true, used_at: new Date().toISOString() }
       );
+      console.log(`✅ Single-use code marked used: ${code}`);
       return r.status < 300 ? ok({ ok: true }) : err(500, { error: r.body });
     }
 
-    // ── 9. SEND EMAIL (generic — called by payment.js) ────
-    // payment.js builds the HTML client-side and sends it here.
-    // This just relays it via Gmail SMTP.
+    // ── 9. SEND EMAIL (called by payment.js with pre-built HTML) ──
     if (route === '/api/send-email') {
       const { to, subject, html } = body;
       if (!to || !html) return err(400, { error: 'Missing to or html' });
@@ -370,7 +369,11 @@ exports.handler = async function(event) {
         patch, 'return=representation'
       );
       const profile = Array.isArray(r.body) ? r.body[0] : (r.body || {});
-      return r.status < 300 ? ok({ ok: true, profile }) : err(500, { error: r.body });
+      if (r.status < 300) {
+        console.log(`✅ Profile updated: ${user_id.slice(0,8)}`);
+        return ok({ ok: true, profile });
+      }
+      return err(500, { error: r.body });
     }
 
     // ── 11. MY ORDERS ─────────────────────────────────────
@@ -382,25 +385,27 @@ exports.handler = async function(event) {
         `/rest/v1/orders?user_id=eq.${user_id}&order=created_at.desc&select=*`
       );
       const orders = Array.isArray(r.body) ? r.body : [];
-      console.log(`✅ my-orders: ${orders.length} for user ${user_id.slice(0,8)}`);
+      console.log(`✅ my-orders: ${orders.length} for ${user_id.slice(0,8)}`);
       return ok({ ok: true, orders });
     }
 
     // ── 12. NEWSLETTER SUBSCRIBE ──────────────────────────
-    // Saves subscriber + generates coupon code + sends email via SMTP
     if (route === '/api/newsletter-subscribe') {
       const email = (body.email || '').trim().toLowerCase();
       const name  = (body.name  || 'Mellow Fan').trim();
       if (!email) return err(400, { error: 'email required' });
 
-      // Save subscriber
+      // Save subscriber (409 = already subscribed)
       const r1 = await supabaseRequest(
         'POST', '/rest/v1/newsletter_subscribers', { email, name }
       );
       if (r1.status === 409) {
         return ok({ ok: true, already_subscribed: true, discount_pct: 0 });
       }
-      if (r1.status >= 300) return err(500, { error: r1.body });
+      if (r1.status >= 300) {
+        console.error('Newsletter save failed:', r1.status, r1.body);
+        return err(500, { error: r1.body });
+      }
       console.log(`✅ Newsletter subscriber: ${email}`);
 
       // Generate coupon
@@ -411,14 +416,12 @@ exports.handler = async function(event) {
       ).join('');
       const exp = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
 
-      // Save coupon to DB
       const r2 = await supabaseRequest('POST', '/rest/v1/discount_codes', {
         code, user_email: email, discount_percent: pct, is_used: false, expires_at: exp,
       });
       if (r2.status < 300) console.log(`✅ Coupon: ${code} (${pct}%) for ${email}`);
-      else console.warn('Coupon save failed (subscriber still saved):', r2.body);
+      else console.warn('Coupon save failed:', r2.body);
 
-      // Send welcome email with coupon via Gmail SMTP
       try {
         await sendEmail(
           email,
@@ -443,19 +446,33 @@ exports.handler = async function(event) {
       return r.status < 300 ? ok({ ok: true }) : err(500, { error: r.body });
     }
 
-    // ── 14. UPDATE CREDENTIALS ────────────────────────────
+    // ── 14. UPDATE CREDENTIALS (audit log) ────────────────
+    // Called after changeEmail() or changePassword() in app.js
+    // Stores a log row in user_credentials table — non-blocking audit trail
     if (route === '/api/update-credentials') {
       const { user_id, email, action } = body;
       if (!user_id) return err(400, { error: 'user_id required' });
       const now   = new Date().toISOString();
-      const patch = { id: user_id, email: email || '', updated_at: now };
+      const patch = {
+        id:         user_id,
+        email:      email || '',
+        updated_at: now,
+      };
       if (action === 'email')    patch.email_change_requested_at = now;
       if (action === 'password') patch.password_changed_at       = now;
+
       const r = await supabaseRequest(
         'POST', '/rest/v1/user_credentials',
-        patch, 'resolution=merge-duplicates,return=minimal'
+        patch,
+        'resolution=merge-duplicates,return=minimal'
       );
-      return r.status < 300 ? ok({ ok: true }) : err(500, { error: r.body });
+      if (r.status < 300) {
+        console.log(`✅ Credentials log: ${user_id.slice(0,8)} action=${action}`);
+        return ok({ ok: true });
+      }
+      // Non-fatal — don't block the user even if audit log fails
+      console.warn(`Credentials log failed (${r.status}):`, r.body);
+      return ok({ ok: true, warning: 'audit log failed but action succeeded' });
     }
 
     // ── 15. ADMIN CHECK ───────────────────────────────────
@@ -468,7 +485,7 @@ exports.handler = async function(event) {
       );
       const rows = Array.isArray(r.body) ? r.body : [];
       return ok(rows.length
-        ? { is_admin: true, role: rows[0].role || 'admin' }
+        ? { is_admin: true,  role: rows[0].role || 'admin' }
         : { is_admin: false }
       );
     }
