@@ -1,0 +1,34 @@
+# ═══════════════════════════════════════════════════════
+#  MELLOW CO. — .gitignore
+#  Keeps secrets, local files, and noise out of GitHub
+# ═══════════════════════════════════════════════════════
+
+# ── SECRETS — NEVER PUSH THESE ─────────────────────────
+.env
+.env.local
+.env.production
+.env.development
+*.env
+
+# ── Local dev server (Python) ──────────────────────────
+server.py
+create-admin.py
+__pycache__/
+*.pyc
+*.pyo
+
+# ── Node / Netlify ──────────────────────────────────────
+node_modules/
+.netlify/
+npm-debug.log*
+
+# ── OS files ────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Editor ──────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo

@@ -1,0 +1,2140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mellow Co. — Admin Panel</title>
+  <link rel="icon" type="image/svg+xml" href="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRP-uq7xU6FATSkp6EY7HNCTi4lgIlG4TmTkQ&s,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='12' fill='%234a2c0a'/><text x='50%25' y='54%25' dominant-baseline='middle' text-anchor='middle' font-family='Georgia,serif' font-size='38' font-weight='900' fill='%23c8a96e'>M</text></svg>" />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,400;1,700&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    /* ═══════════════════════════════════════════
+       RESET & BASE
+    ═══════════════════════════════════════════ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --brown:     #4a2c0a;
+      --brown-mid: #7a4f2a;
+      --brown-lt:  #a67c52;
+      --gold:      #c8a96e;
+      --gold-dk:   #9d7a45;
+      --cream:     #f5f0e8;
+      --cream-dk:  #e8dfd0;
+      --white:     #fffef8;
+      --ink:       #1a0f05;
+      --green:     #2d7a4a;
+      --red:       #8b1a1a;
+      --sidebar-w: 240px;
+    }
+    body {
+      font-family: 'Georgia', serif;
+      background: var(--cream);
+      color: var(--ink);
+      min-height: 100vh;
+    }
+    button { cursor: pointer; font-family: inherit; }
+    input, select, textarea { font-family: inherit; }
+    a { color: inherit; text-decoration: none; }
+
+    /* ═══════════════════════════════════════════
+       LOGIN SCREEN
+    ═══════════════════════════════════════════ */
+    #login-screen {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #4a2c0a 0%, #7a4f2a 60%, #4a2c0a 100%);
+    }
+    .login-card {
+      background: var(--white);
+      border-top: 4px solid var(--gold);
+      padding: 2.5rem 2rem;
+      width: 100%;
+      max-width: 400px;
+      box-shadow: 0 30px 80px rgba(0,0,0,0.35);
+    }
+    .login-logo {
+      text-align: center;
+      margin-bottom: 1.5rem;
+    }
+    .login-logo h1 {
+      font-size: 1.8rem;
+      font-weight: 900;
+      color: var(--brown);
+    }
+    .login-logo h1 span { color: var(--gold-dk); font-style: italic; }
+    .login-logo p {
+      font-size: 0.78rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--brown-lt);
+      margin-top: 4px;
+    }
+    .login-field { margin-bottom: 1rem; }
+    .login-field label {
+      display: block;
+      font-size: 0.72rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--brown-mid);
+      margin-bottom: 0.35rem;
+    }
+    .login-field input {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      border: 1px solid var(--cream-dk);
+      background: var(--cream);
+      font-size: 1rem;
+      color: var(--brown);
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .login-field input:focus { border-color: var(--gold); }
+    .login-btn {
+      width: 100%;
+      padding: 0.9rem;
+      background: var(--brown);
+      color: var(--white);
+      border: 1px solid var(--gold);
+      font-size: 1rem;
+      letter-spacing: 0.08em;
+      margin-top: 0.5rem;
+      transition: background 0.2s;
+    }
+    .login-btn:hover { background: var(--gold-dk); }
+    .login-err {
+      color: var(--red);
+      font-size: 0.85rem;
+      margin-top: 0.6rem;
+      font-style: italic;
+    }
+
+    /* ═══════════════════════════════════════════
+       LAYOUT
+    ═══════════════════════════════════════════ */
+    #app { display: none; min-height: 100vh; }
+
+    /* Sidebar */
+    .sidebar {
+      position: fixed;
+      top: 0; left: 0;
+      width: var(--sidebar-w);
+      height: 100vh;
+      background: linear-gradient(180deg, #4a2c0a 0%, #3a1f05 100%);
+      display: flex;
+      flex-direction: column;
+      z-index: 100;
+      overflow-y: auto;
+    }
+    .sidebar-logo {
+      padding: 1.4rem 1.2rem;
+      border-bottom: 1px solid rgba(200,169,110,0.2);
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+    .sidebar-logo img {
+      width: 36px; height: 36px;
+      border-radius: 8px;
+      border: 1px solid var(--gold);
+      object-fit: cover;
+    }
+    .sidebar-logo-text {
+      font-size: 1.1rem;
+      font-weight: 900;
+      color: var(--white);
+    }
+    .sidebar-logo-text span { color: var(--gold); font-style: italic; }
+    .sidebar-badge {
+      font-size: 0.6rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: rgba(200,169,110,0.6);
+      padding-left: 0.2rem;
+    }
+    .nav-section {
+      padding: 0.8rem 0.8rem 0.3rem;
+      font-size: 0.6rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: rgba(200,169,110,0.45);
+    }
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 0.7rem;
+      padding: 0.65rem 1.2rem;
+      color: rgba(255,254,248,0.7);
+      font-size: 0.88rem;
+      letter-spacing: 0.04em;
+      border: none;
+      background: none;
+      width: 100%;
+      text-align: left;
+      transition: all 0.15s;
+      border-left: 3px solid transparent;
+    }
+    .nav-item:hover { background: rgba(200,169,110,0.1); color: var(--white); }
+    .nav-item.active {
+      background: rgba(200,169,110,0.15);
+      color: var(--gold);
+      border-left-color: var(--gold);
+    }
+    .nav-item .nav-icon { font-size: 1rem; width: 20px; text-align: center; }
+    .sidebar-bottom {
+      margin-top: auto;
+      padding: 1rem;
+      border-top: 1px solid rgba(200,169,110,0.15);
+    }
+    .logout-btn {
+      width: 100%;
+      padding: 0.6rem;
+      background: none;
+      border: 1px solid rgba(200,169,110,0.3);
+      color: rgba(200,169,110,0.7);
+      font-size: 0.82rem;
+      letter-spacing: 0.06em;
+      transition: all 0.2s;
+    }
+    .logout-btn:hover { border-color: var(--gold); color: var(--gold); }
+
+    /* Main Content */
+    .main {
+      margin-left: var(--sidebar-w);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    .topbar {
+      background: var(--white);
+      border-bottom: 1px solid var(--cream-dk);
+      padding: 0.9rem 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+    .topbar-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--brown);
+      font-family: 'Georgia', serif;
+    }
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      font-size: 0.82rem;
+      color: var(--brown-lt);
+    }
+    .admin-tag {
+      background: var(--brown);
+      color: var(--gold);
+      padding: 0.25rem 0.7rem;
+      font-size: 0.72rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+    .content { padding: 2rem; flex: 1; }
+
+    /* ═══════════════════════════════════════════
+       LOADING
+    ═══════════════════════════════════════════ */
+    .spinner {
+      width: 40px; height: 40px;
+      border: 3px solid var(--cream-dk);
+      border-top-color: var(--gold);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 3rem auto;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-wrap { text-align: center; padding: 3rem; }
+    .loading-wrap p { color: var(--brown-lt); font-style: italic; margin-top: 1rem; }
+
+    /* ═══════════════════════════════════════════
+       STAT CARDS
+    ═══════════════════════════════════════════ */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1.2rem;
+      margin-bottom: 2rem;
+    }
+    .stat-card {
+      background: var(--white);
+      border: 1px solid var(--cream-dk);
+      border-top: 3px solid var(--gold);
+      padding: 1.3rem 1.5rem;
+    }
+    .stat-label {
+      font-size: 0.72rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--brown-lt);
+      margin-bottom: 0.5rem;
+    }
+    .stat-value {
+      font-size: 1.9rem;
+      font-weight: 900;
+      color: var(--brown);
+      font-family: 'Georgia', serif;
+    }
+    .stat-sub {
+      font-size: 0.78rem;
+      color: var(--brown-lt);
+      margin-top: 0.3rem;
+      font-style: italic;
+    }
+    .stat-accent { color: var(--gold-dk); }
+
+    /* ═══════════════════════════════════════════
+       CHART AREA
+    ═══════════════════════════════════════════ */
+    .charts-row {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+    .chart-card {
+      background: var(--white);
+      border: 1px solid var(--cream-dk);
+      border-top: 3px solid var(--gold);
+      padding: 1.3rem 1.5rem;
+    }
+    .chart-title {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--brown);
+      margin-bottom: 1rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .chart-container { position: relative; height: 220px; }
+
+    /* ═══════════════════════════════════════════
+       TABLES
+    ═══════════════════════════════════════════ */
+    .panel {
+      background: var(--white);
+      border: 1px solid var(--cream-dk);
+      border-top: 3px solid var(--gold);
+      margin-bottom: 1.5rem;
+    }
+    .panel-header {
+      padding: 1rem 1.5rem;
+      border-bottom: 1px solid var(--cream-dk);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 0.8rem;
+    }
+    .panel-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--brown);
+    }
+    .panel-actions { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; }
+    .filter-select {
+      padding: 0.4rem 0.8rem;
+      border: 1px solid var(--cream-dk);
+      background: var(--cream);
+      font-size: 0.82rem;
+      color: var(--brown);
+      outline: none;
+    }
+    .search-box {
+      padding: 0.4rem 0.8rem;
+      border: 1px solid var(--cream-dk);
+      background: var(--cream);
+      font-size: 0.82rem;
+      color: var(--brown);
+      outline: none;
+      width: 200px;
+    }
+    .search-box:focus { border-color: var(--gold); }
+    .btn-sm {
+      padding: 0.4rem 0.9rem;
+      font-size: 0.8rem;
+      letter-spacing: 0.04em;
+      border: 1px solid var(--cream-dk);
+      background: var(--cream);
+      color: var(--brown-mid);
+      transition: all 0.15s;
+    }
+    .btn-sm:hover { background: var(--cream-dk); }
+    .btn-sm.primary {
+      background: var(--brown);
+      color: var(--white);
+      border-color: var(--gold);
+    }
+    .btn-sm.primary:hover { background: var(--gold-dk); }
+    .btn-sm.success {
+      background: #e8f5ec;
+      color: #1a5c35;
+      border-color: #a0d0b0;
+    }
+    .btn-sm.success:hover { background: #c8ecd6; }
+    .btn-sm.danger {
+      background: #fef5f5;
+      color: var(--red);
+      border-color: #e0a0a0;
+    }
+
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; }
+    th {
+      padding: 0.7rem 1rem;
+      text-align: left;
+      font-size: 0.7rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--brown-lt);
+      font-weight: 600;
+      background: var(--cream);
+      border-bottom: 1px solid var(--cream-dk);
+      white-space: nowrap;
+    }
+    td {
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid var(--cream-dk);
+      font-size: 0.88rem;
+      color: var(--brown);
+      vertical-align: middle;
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: var(--cream); }
+
+    /* ═══════════════════════════════════════════
+       BADGES
+    ═══════════════════════════════════════════ */
+    .badge {
+      display: inline-block;
+      padding: 2px 10px;
+      font-size: 0.72rem;
+      border-radius: 20px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .badge-pending   { background: #fff8e8; color: #9d7a45; border: 1px solid #e8d5a0; }
+    .badge-paid      { background: #e8f5ec; color: #1a5c35; border: 1px solid #a0d0b0; }
+    .badge-confirmed { background: #fff8e8; color: #9d7a45; border: 1px solid #e8d5a0; }
+    .badge-delivered { background: #e8f5ec; color: #1a5c35; border: 1px solid #a0d0b0; }
+    .badge-cancelled { background: #fef5f5; color: #8b1a1a; border: 1px solid #e0a0a0; }
+    .badge-upi       { background: #e8f0fe; color: #1a4a9d; border: 1px solid #a0b8e0; }
+    .badge-cod       { background: #fff3e0; color: #8b5e00; border: 1px solid #e0c880; }
+    .badge-card      { background: #f3e8fe; color: #5c1a8b; border: 1px solid #c0a0e0; }
+
+    /* ═══════════════════════════════════════════
+       MODAL
+    ═══════════════════════════════════════════ */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(26,15,5,0.7);
+      backdrop-filter: blur(4px);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    .modal {
+      background: var(--white);
+      border-top: 4px solid var(--gold);
+      max-width: 900px;
+      width: 100%;
+      max-height: 92vh;
+      overflow-y: auto;
+      position: relative;
+    }
+    .modal-header {
+      padding: 1.2rem 1.5rem;
+      border-bottom: 1px solid var(--cream-dk);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      background: var(--white);
+      z-index: 10;
+    }
+    .modal-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--brown);
+    }
+    .modal-close {
+      background: none;
+      border: 1px solid var(--cream-dk);
+      color: var(--brown-lt);
+      width: 30px;
+      height: 30px;
+      font-size: 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-close:hover { background: var(--cream); }
+    .modal-body { padding: 1.5rem; }
+    .modal-footer {
+      padding: 1rem 1.5rem;
+      border-top: 1px solid var(--cream-dk);
+      display: flex;
+      gap: 0.8rem;
+      justify-content: flex-end;
+    }
+
+    /* ═══════════════════════════════════════════
+       ORDER DETAIL MODAL
+    ═══════════════════════════════════════════ */
+    .order-detail-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.2rem;
+      margin-bottom: 1.5rem;
+    }
+    .detail-section {
+      background: var(--cream);
+      border: 1px solid var(--cream-dk);
+      border-left: 3px solid var(--gold);
+      padding: 1rem;
+    }
+    .detail-section h4 {
+      font-size: 0.72rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--brown-lt);
+      margin-bottom: 0.7rem;
+    }
+    .detail-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.88rem;
+      padding: 0.25rem 0;
+      border-bottom: 1px solid var(--cream-dk);
+    }
+    .detail-row:last-child { border-bottom: none; }
+    .detail-row span:first-child { color: var(--brown-lt); }
+    .detail-row span:last-child { color: var(--brown); font-weight: 600; }
+
+    /* Customer detail panel */
+    .customer-orders-list { display: flex; flex-direction: column; gap: 0.8rem; }
+    .cust-order-card {
+      background: var(--white);
+      border: 1px solid var(--cream-dk);
+      border-left: 3px solid var(--gold);
+      padding: 1rem;
+    }
+
+    /* ═══════════════════════════════════════════
+       TOAST
+    ═══════════════════════════════════════════ */
+    #admin-toast {
+      position: fixed;
+      bottom: 1.5rem;
+      right: 1.5rem;
+      background: var(--brown);
+      color: var(--white);
+      padding: 0.8rem 1.4rem;
+      font-size: 0.9rem;
+      border: 1px solid var(--gold);
+      z-index: 9999;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: all 0.3s;
+      pointer-events: none;
+    }
+    #admin-toast.show { opacity: 1; transform: translateY(0); }
+
+    /* ═══════════════════════════════════════════
+       MISC
+    ═══════════════════════════════════════════ */
+    .empty-state {
+      text-align: center;
+      padding: 3rem;
+      color: var(--brown-lt);
+      font-style: italic;
+    }
+    .empty-state .empty-icon { font-size: 2.5rem; margin-bottom: 0.8rem; }
+    .flex-row { display: flex; align-items: center; gap: 0.6rem; }
+    .mt-1 { margin-top: 0.5rem; }
+    .back-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.5rem 1rem;
+      background: none;
+      border: 1px solid var(--cream-dk);
+      color: var(--brown-mid);
+      font-size: 0.85rem;
+      margin-bottom: 1.2rem;
+      transition: all 0.15s;
+    }
+    .back-btn:hover { background: var(--cream); }
+    .section-title {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--brown);
+      margin-bottom: 1.2rem;
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+    .date-input {
+      padding: 0.4rem 0.7rem;
+      border: 1px solid var(--cream-dk);
+      background: var(--cream);
+      font-size: 0.82rem;
+      color: var(--brown);
+      outline: none;
+    }
+
+    /* ═══════════════════════════════════════════
+       COMPLETE UI SYSTEM — Dashboard-consistent layout,
+       rounded corners, full-width panels for all sections
+    ═══════════════════════════════════════════ */
+
+    /* Full screen layout */
+    html, body { height: 100%; overflow: hidden; }
+    #app { height: 100vh; overflow: hidden; display: flex; }
+    .main { display: flex; flex-direction: column; height: 100vh; overflow: hidden; flex: 1; }
+    .content { flex: 1; overflow-y: auto; padding: 1.8rem 2rem; }
+
+    /* Scrollbars */
+    .content::-webkit-scrollbar  { width: 6px; }
+    .content::-webkit-scrollbar-track  { background: var(--cream); }
+    .content::-webkit-scrollbar-thumb  { background: var(--cream-dk); border-radius: 3px; }
+    .sidebar::-webkit-scrollbar        { width: 3px; }
+    .sidebar::-webkit-scrollbar-thumb  { background: rgba(200,169,110,0.3); }
+    .sidebar { overflow-y: auto; overflow-x: hidden; }
+
+    /* Topbar — improved */
+    .topbar {
+      background: var(--white);
+      border-bottom: 1px solid var(--cream-dk);
+      padding: 0 2rem;
+      height: 58px; min-height: 58px;
+      display: flex; align-items: center; justify-content: space-between;
+      box-shadow: 0 2px 8px rgba(74,44,10,0.07);
+      position: sticky; top: 0; z-index: 50;
+    }
+    .topbar-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.2rem; font-weight: 700; color: var(--brown);
+      display: flex; align-items: center; gap: 0.6rem;
+    }
+    .topbar-title::before {
+      content: ''; display: inline-block; width: 3px; height: 20px;
+      background: var(--gold); border-radius: 2px;
+    }
+    .topbar-right { display: flex; align-items: center; gap: 0.8rem; }
+
+    /* ── ROUNDED CORNERS — applied globally ── */
+    .admin-tag       { border-radius: 6px; }
+    .stat-card       { border-radius: 10px; }
+    .panel           { border-radius: 10px; overflow: hidden; }
+    .chart-card      { border-radius: 10px; border-top: 3px solid var(--gold); }
+    .login-card      { border-radius: 14px; }
+    .modal           { border-radius: 10px; }
+    .detail-section  { border-radius: 8px; }
+    .cust-order-card { border-radius: 8px; }
+    .badge           { border-radius: 20px; }
+    #admin-toast     { border-radius: 8px; }
+    .btn-sm          { border-radius: 6px; }
+    .back-btn        { border-radius: 6px; }
+    .logout-btn      { border-radius: 6px; }
+    .login-btn       { border-radius: 6px; }
+    .login-field input { border-radius: 6px; }
+    .search-box      { border-radius: 6px; }
+    .filter-select   { border-radius: 6px; }
+    .date-input      { border-radius: 6px; }
+    .modal-close     { border-radius: 6px; }
+    .empty-state     { border-radius: 8px; }
+    .nav-item        { border-radius: 0 6px 6px 0; margin: 1px 8px 1px 0; }
+
+    /* ── STAT CARDS ── */
+    .stat-card {
+      background: var(--white);
+      border: 1px solid var(--cream-dk);
+      border-top: 3px solid var(--gold);
+      padding: 1.4rem 1.6rem;
+      transition: box-shadow 0.2s, transform 0.15s;
+    }
+    .stat-card:hover { box-shadow: 0 6px 20px rgba(74,44,10,0.1); transform: translateY(-2px); }
+
+    /* ── PANELS — full width, dashboard-consistent ── */
+    .panel {
+      background: var(--white);
+      border: 1px solid var(--cream-dk);
+      border-top: 3px solid var(--gold);
+      margin-bottom: 1.5rem;
+      width: 100%; box-sizing: border-box;
+    }
+    .panel-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 1rem 1.5rem;
+      border-bottom: 1px solid var(--cream-dk);
+      background: #faf7f2;
+      flex-wrap: wrap; gap: 0.8rem;
+    }
+    .panel-title { font-size: 0.95rem; font-weight: 700; color: var(--brown); letter-spacing: 0.03em; }
+    .panel-actions { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+
+    /* ── TABLES — full width ── */
+    .table-wrap { overflow-x: auto; width: 100%; }
+    .table-wrap table { width: 100%; border-collapse: collapse; font-size: 0.87rem; }
+    .table-wrap th {
+      padding: 0.75rem 1rem;
+      text-align: left; font-size: 0.7rem; letter-spacing: 0.12em;
+      text-transform: uppercase; color: var(--brown-lt); font-weight: 700;
+      white-space: nowrap; background: #faf7f2; border-bottom: 2px solid var(--cream-dk);
+    }
+    .table-wrap td {
+      padding: 0.8rem 1rem;
+      border-bottom: 1px solid var(--cream-dk);
+      color: var(--brown); vertical-align: middle;
+    }
+    .table-wrap tr:last-child td { border-bottom: none; }
+    .table-wrap tr:hover td { background: #fdf9f4; }
+
+    /* ── BUTTONS ── */
+    .btn-sm.primary {
+      background: var(--brown); color: var(--white);
+      border: 1px solid var(--gold);
+      font-size: 0.8rem; padding: 0.4rem 1rem; letter-spacing: 0.03em;
+      transition: background 0.15s;
+    }
+    .btn-sm.primary:hover { background: var(--gold-dk); border-color: var(--gold-dk); }
+
+    /* ── CHARTS ── */
+    .chart-card { background: var(--white); border: 1px solid var(--cream-dk); padding: 1.4rem 1.6rem; }
+    .chart-title {
+      font-size: 0.9rem; font-weight: 700; color: var(--brown);
+      margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center;
+    }
+    .chart-container { height: 220px; position: relative; }
+
+    /* ── GRID LAYOUTS — fill full page width ── */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1rem; margin-bottom: 1.5rem; width: 100%;
+    }
+    .charts-row {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 1rem; margin-bottom: 1.5rem; width: 100%;
+    }
+
+    /* ── Discount form inputs ── */
+    #new-code-val, #new-code-email, #new-code-pct, #new-code-type {
+      border-radius: 6px; transition: border-color 0.2s;
+    }
+    #new-code-val:focus, #new-code-email:focus,
+    #new-code-pct:focus, #new-code-type:focus { border-color: var(--gold); }
+    button[onclick="createDiscountCode()"] { border-radius: 6px; }
+
+    @media (max-width: 1200px) {
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+      .charts-row { grid-template-columns: 1fr; }
+      .cod-stats-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 900px) {
+      :root { --sidebar-w: 60px; }
+      .sidebar-logo-text, .sidebar-badge, .nav-section, .nav-item span:not(.nav-icon) { display: none; }
+      .sidebar-logo { justify-content: center; }
+      .nav-item { justify-content: center; padding: 0.7rem; }
+      .order-detail-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 600px) {
+      .content { padding: 1rem; }
+      .stats-grid { grid-template-columns: 1fr 1fr; }
+      .topbar { padding: 0 1rem; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════
+     LOGIN SCREEN
+══════════════════════════════════════ -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-logo">
+      <h1>Mellow <span>Co.</span></h1>
+      <p>✦ &nbsp; Admin Panel &nbsp; ✦</p>
+    </div>
+    <div class="login-field">
+      <label>Email Address</label>
+      <input type="email" id="admin-email" placeholder="admin@mellowco.in" />
+    </div>
+    <div class="login-field">
+      <label>Password</label>
+      <input type="password" id="admin-pass" placeholder="••••••••••••"
+        onkeydown="if(event.key==='Enter') adminLogin()" />
+    </div>
+    <button class="login-btn" onclick="adminLogin()">Sign In to Admin Panel</button>
+    <div class="login-err" id="login-err"></div>
+    <p style="margin-top:1.2rem;font-size:0.75rem;color:var(--brown-lt);text-align:center;font-style:italic">
+      Admin accounts are provisioned by the store owner.<br/>Run <code style="font-size:0.7rem;background:#f5f0e8;padding:1px 5px;border-radius:3px">python create-admin.py</code> to set up.
+    </p>
+    <div style="margin-top:1.2rem;text-align:center">
+      <a href="index.html" style="font-size:0.78rem;color:var(--brown-lt);text-decoration:underline;text-underline-offset:3px;opacity:0.7;transition:opacity 0.2s"
+         onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'">
+        ← Back to Store
+      </a>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     MAIN APP (hidden until login)
+══════════════════════════════════════ -->
+<div id="app">
+
+  <!-- SIDEBAR -->
+  <nav class="sidebar">
+    <div class="sidebar-logo">
+      <div style="width:38px;height:38px;border-radius:10px;border:1.5px solid var(--gold);background:var(--brown);display:flex;align-items:center;justify-content:center;font-size:1.35rem;font-family:'Playfair Display',Georgia,serif;color:var(--gold);font-weight:900;font-style:italic;flex-shrink:0;box-shadow:0 2px 8px rgba(74,44,10,0.18)">M</div>
+      <div>
+        <div class="sidebar-logo-text">Mellow <span>Co.</span></div>
+        <div class="sidebar-badge">Admin Panel</div>
+      </div>
+    </div>
+
+    <div class="nav-section">Overview</div>
+    <button class="nav-item active" data-page="dashboard" onclick="showPage('dashboard')">
+      <span class="nav-icon">📊</span><span>Dashboard</span>
+    </button>
+
+    <div class="nav-section">Orders</div>
+    <button class="nav-item" data-page="orders" onclick="showPage('orders')">
+      <span class="nav-icon">📦</span><span>All Orders</span>
+    </button>
+    <button class="nav-item" data-page="cod" onclick="showPage('cod')">
+      <span class="nav-icon">💵</span><span>COD Management</span>
+    </button>
+
+    <div class="nav-section">Customers</div>
+    <button class="nav-item" data-page="customers" onclick="showPage('customers')">
+      <span class="nav-icon">👥</span><span>Customers</span>
+    </button>
+
+    <div class="nav-section">Data</div>
+    <button class="nav-item" data-page="newsletter" onclick="showPage('newsletter')">
+      <span class="nav-icon">📧</span><span>Newsletter</span>
+    </button>
+    <button class="nav-item" data-page="feedback" onclick="showPage('feedback')">
+      <span class="nav-icon">💬</span><span>Feedback</span>
+    </button>
+    <button class="nav-item" data-page="discounts" onclick="showPage('discounts')">
+      <span class="nav-icon">🏷️</span><span>Discount Codes</span>
+    </button>
+
+    <div class="sidebar-bottom">
+      <button class="logout-btn" onclick="adminLogout()">↩ Sign Out</button>
+    </div>
+  </nav>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="topbar">
+      <div style="display:flex;align-items:center;gap:0.55rem">
+        <div style="width:36px;height:36px;border-radius:9px;border:1.5px solid var(--gold);background:var(--brown);display:flex;align-items:center;justify-content:center;font-size:1.15rem;font-family:'Playfair Display',Georgia,serif;color:var(--gold);font-weight:900;font-style:italic;flex-shrink:0;box-shadow:0 2px 8px rgba(74,44,10,0.18)">M</div>
+        <div class="topbar-title" id="page-title">Dashboard</div>
+      </div>
+      <div class="topbar-right">
+        <span id="admin-email-display">—</span>
+        <span class="admin-tag">Admin</span>
+      </div>
+    </div>
+    <div class="content" id="page-content">
+      <div class="loading-wrap"><div class="spinner"></div><p>Loading…</p></div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CONTAINER -->
+<div id="modal-container"></div>
+<!-- TOAST -->
+<div id="admin-toast"></div>
+
+<script>
+/* ══════════════════════════════════════════════════════
+   SUPABASE CLIENT
+══════════════════════════════════════════════════════ */
+const SUPABASE_URL  = 'https://tjbjhykmnsssfhzltgvs.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRqYmpoeWttbnNzc2Zoemx0Z3ZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUxMjA3MjgsImV4cCI6MjA5MDY5NjcyOH0.xs-aX7hX8Of5RhHvA83w3ycgj9l3SV-O2uLOdbZ165k';
+const SUPABASE_SVC  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRqYmpoeWttbnNzc2Zoemx0Z3ZzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTEyMDcyOCwiZXhwIjoyMDkwNjk2NzI4fQ.yFnRGRXJHPGGU7atgIVvcVipTeN82SFVHH9BXKug_l4';
+
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+// ── Admin verification — checked against the `admins` DB table ──
+// To add a new admin: insert a row into the `admins` table in Supabase,
+// then run create-admin.py (or create the Supabase Auth user manually).
+async function isAdminEmail(email) {
+  try {
+    const res = await fetch(
+      SUPABASE_URL + '/rest/v1/admins?email=eq.' + encodeURIComponent(email) + '&is_active=eq.true&select=email,role',
+      {
+        headers: {
+          'apikey': SUPABASE_SVC,
+          'Authorization': 'Bearer ' + SUPABASE_SVC,
+          'Content-Type': 'application/json',
+        }
+      }
+    );
+    const rows = await res.json();
+    return Array.isArray(rows) && rows.length > 0;
+  } catch(e) {
+    console.error('Admin check failed:', e);
+    return false;
+  }
+}
+
+/* ══════════════════════════════════════════════════════
+   UTILITIES
+══════════════════════════════════════════════════════ */
+const fmt = n => '₹' + Number(n || 0).toLocaleString('en-IN');
+const fmtDate = d => d ? new Date(d).toLocaleDateString('en-IN', {day:'2-digit',month:'short',year:'numeric'}) : '—';
+const fmtDateTime = d => d ? new Date(d).toLocaleString('en-IN', {day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '—';
+const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+function toast(msg, dur=2800) {
+  const el = document.getElementById('admin-toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => el.classList.remove('show'), dur);
+}
+
+/* ══════════════════════════════════════
+   CSV DOWNLOAD UTILITY
+══════════════════════════════════════ */
+function downloadCSV(data, filename) {
+  if (!data || !data.length) { toast('No data to export'); return; }
+  const cols = Object.keys(data[0]);
+  const escape = v => {
+    if (v === null || v === undefined) return '';
+    const s = typeof v === 'object' ? JSON.stringify(v) : String(v);
+    return s.includes(',') || s.includes('"') || s.includes('\n')
+      ? '"' + s.replace(/"/g, '""') + '"' : s;
+  };
+  const rows = [cols.join(','), ...data.map(row => cols.map(c => escape(row[c])).join(','))];
+  const blob = new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+  toast('✅ CSV downloaded: ' + filename);
+}
+
+/* Direct Supabase call with service role (bypasses RLS) */
+async function sbQuery(method, path, body) {
+  const res = await fetch(SUPABASE_URL + path, {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': SUPABASE_SVC,
+      'Authorization': 'Bearer ' + SUPABASE_SVC,
+      ...(method !== 'GET' ? { 'Prefer': 'return=representation' } : {}),
+    },
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  });
+  return res.json();
+}
+
+/* ══════════════════════════════════════════════════════
+   AUTH
+══════════════════════════════════════════════════════ */
+let ADMIN = null;
+
+async function adminLogin() {
+  const email = document.getElementById('admin-email').value.trim();
+  const pass  = document.getElementById('admin-pass').value;
+  const errEl = document.getElementById('login-err');
+  errEl.textContent = '';
+
+  if (!email || !pass) { errEl.textContent = 'Please enter email and password.'; return; }
+
+  const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
+  if (error || !data?.user) {
+    errEl.textContent = 'Login failed: ' + (error?.message || 'Unknown error');
+    return;
+  }
+
+  // Check admin table in DB
+  const allowed = await isAdminEmail(data.user.email);
+  if (!allowed) {
+    await sb.auth.signOut();
+    errEl.textContent = 'Access denied. This account does not have admin privileges.';
+    return;
+  }
+
+  ADMIN = data.user;
+  startApp();
+}
+
+async function checkExistingSession() {
+  const { data } = await sb.auth.getSession();
+  if (data?.session?.user) {
+    const allowed = await isAdminEmail(data.session.user.email);
+    if (allowed) {
+      ADMIN = data.session.user;
+      startApp();
+    }
+  }
+}
+
+async function adminLogout() {
+  await sb.auth.signOut();
+  ADMIN = null;
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+}
+
+function startApp() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+  document.getElementById('admin-email-display').textContent = ADMIN.email;
+  showPage('dashboard');
+}
+
+/* ══════════════════════════════════════════════════════
+   NAVIGATION
+══════════════════════════════════════════════════════ */
+const PAGE_TITLES = {
+  dashboard: 'Dashboard',
+  orders: 'All Orders',
+  cod: 'COD Management',
+  customers: 'Customer Management',
+  newsletter: 'Newsletter Subscribers',
+  feedback: 'Customer Feedback',
+  discounts: 'Discount Codes',
+};
+
+function showPage(page) {
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.toggle('active', el.dataset.page === page));
+  document.getElementById('page-title').textContent = PAGE_TITLES[page] || page;
+  const content = document.getElementById('page-content');
+  content.innerHTML = '<div class="loading-wrap"><div class="spinner"></div><p>Loading…</p></div>';
+
+  switch(page) {
+    case 'dashboard':  renderDashboard(); break;
+    case 'orders':     renderOrders(); break;
+    case 'cod':        renderCOD(); break;
+    case 'customers':  renderCustomers(); break;
+    case 'newsletter': renderNewsletter(); break;
+    case 'feedback':   renderFeedback(); break;
+    case 'discounts':  renderDiscounts(); break;
+  }
+}
+
+/* ══════════════════════════════════════════════════════
+   DASHBOARD
+══════════════════════════════════════════════════════ */
+async function renderDashboard() {
+  const [orders, customers, newsletter, feedback] = await Promise.all([
+    sbQuery('GET', '/rest/v1/orders?select=*&order=created_at.desc'),
+    sbQuery('GET', '/rest/v1/users?select=*'),
+    sbQuery('GET', '/rest/v1/newsletter_subscribers?select=id'),
+    sbQuery('GET', '/rest/v1/feedback?select=id'),
+  ]);
+
+  const allOrders = Array.isArray(orders) ? orders : [];
+  const today = new Date().toDateString();
+  const todayOrders = allOrders.filter(o => new Date(o.created_at).toDateString() === today);
+  const totalRevenue = allOrders.reduce((s,o) => s + (o.total||0), 0);
+  const pendingCOD   = allOrders.filter(o => o.payment_method === 'cod' && o.payment_status === 'pending');
+  const totalCust    = Array.isArray(customers) ? customers.length : 0;
+  const totalNews    = Array.isArray(newsletter) ? newsletter.length : 0;
+
+  // Daily orders for last 14 days
+  const days = [];
+  const counts = [];
+  const revenues = [];
+  for (let i = 13; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const dayStr = d.toDateString();
+    days.push(d.toLocaleDateString('en-IN', {day:'2-digit',month:'short'}));
+    const dayOrds = allOrders.filter(o => new Date(o.created_at).toDateString() === dayStr);
+    counts.push(dayOrds.length);
+    revenues.push(dayOrds.reduce((s,o) => s + (o.total||0), 0));
+  }
+
+  // Payment method breakdown
+  const pmCounts = { cod:0, upi:0, card:0 };
+  allOrders.forEach(o => { pmCounts[o.payment_method] = (pmCounts[o.payment_method]||0) + 1; });
+
+  // Compute extra stats
+  const avgOrder    = allOrders.length ? Math.round(totalRevenue / allOrders.length) : 0;
+  const paidOrders  = allOrders.filter(o => o.payment_status === 'paid').length;
+  const thisWeekOrders = allOrders.filter(o => {
+    const d = new Date(o.created_at);
+    const now = new Date();
+    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    return d >= weekAgo;
+  });
+  const weekRevenue = thisWeekOrders.reduce((s,o) => s + (o.total||0), 0);
+
+  // Top selling items from orders
+  const itemCounts = {};
+  allOrders.forEach(o => {
+    (o.items || []).forEach(item => {
+      if (!itemCounts[item.name]) itemCounts[item.name] = { qty: 0, revenue: 0 };
+      itemCounts[item.name].qty += (item.qty || 1);
+      itemCounts[item.name].revenue += (item.total || 0);
+    });
+  });
+  const topItems = Object.entries(itemCounts)
+    .sort((a, b) => b[1].revenue - a[1].revenue)
+    .slice(0, 5);
+
+  document.getElementById('page-content').innerHTML = `
+    <!-- STATS ROW 1 -->
+    <div class="stats-grid" style="grid-template-columns:repeat(4,1fr)">
+      <div class="stat-card">
+        <div class="stat-label">Total Revenue</div>
+        <div class="stat-value stat-accent">${fmt(totalRevenue)}</div>
+        <div class="stat-sub">${allOrders.length} orders total</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">This Week</div>
+        <div class="stat-value" style="color:var(--brown-mid)">${fmt(weekRevenue)}</div>
+        <div class="stat-sub">${thisWeekOrders.length} orders this week</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Avg Order Value</div>
+        <div class="stat-value" style="color:var(--gold-dk)">${fmt(avgOrder)}</div>
+        <div class="stat-sub">${paidOrders} paid · ${allOrders.length - paidOrders} pending</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Customers</div>
+        <div class="stat-value">${totalCust}</div>
+        <div class="stat-sub">${totalNews} newsletter subscribers</div>
+      </div>
+    </div>
+
+    <!-- STATS ROW 2 -->
+    <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-top:-0.5rem">
+      <div class="stat-card">
+        <div class="stat-label">Today's Orders</div>
+        <div class="stat-value">${todayOrders.length}</div>
+        <div class="stat-sub">${fmt(todayOrders.reduce((s,o)=>s+(o.total||0),0))} revenue today</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Pending COD</div>
+        <div class="stat-value" style="color:var(--red)">${pendingCOD.length}</div>
+        <div class="stat-sub">Awaiting delivery confirmation</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">COD Orders</div>
+        <div class="stat-value">${pmCounts.cod}</div>
+        <div class="stat-sub">Cash on Delivery</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">UPI / Card</div>
+        <div class="stat-value">${pmCounts.upi + pmCounts.card}</div>
+        <div class="stat-sub">${pmCounts.upi} UPI · ${pmCounts.card} Card</div>
+      </div>
+    </div>
+
+    <!-- CHARTS -->
+    <div class="charts-row">
+      <div class="chart-card">
+        <div class="chart-title">
+          <span>Daily Orders (Last 14 Days)</span>
+          <span style="font-size:0.75rem;font-weight:400;color:var(--brown-lt)">Count & Revenue</span>
+        </div>
+        <div class="chart-container">
+          <canvas id="chart-daily"></canvas>
+        </div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Payment Methods</div>
+        <div class="chart-container">
+          <canvas id="chart-payment"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- BOTTOM ROW: Recent Orders + Top Items -->
+    <div style="display:grid;grid-template-columns:2fr 1fr;gap:1.5rem;margin-top:0">
+
+      <!-- RECENT ORDERS -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">Recent Orders</div>
+          <button class="btn-sm primary" onclick="showPage('orders')">View All →</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>Order ID</th><th>Customer</th><th>Items</th>
+              <th>Total</th><th>Payment</th><th>Status</th><th>Date</th><th>Actions</th>
+            </tr></thead>
+            <tbody>
+              ${allOrders.slice(0,6).map(o => orderRow(o)).join('') || `<tr><td colspan="8"><div class="empty-state">No orders yet</div></td></tr>`}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- RIGHT COLUMN -->
+      <div style="display:flex;flex-direction:column;gap:1.5rem">
+
+        <!-- TOP SELLING ITEMS -->
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">🍮 Top Items</div>
+          </div>
+          <div style="padding:0.5rem 0">
+            ${topItems.length ? topItems.map(([name, stats], i) => `
+              <div style="display:flex;align-items:center;gap:0.8rem;padding:0.65rem 1.2rem;border-bottom:1px solid var(--cream-dk)">
+                <div style="width:22px;height:22px;border-radius:50%;background:${i===0?'var(--gold)':i===1?'var(--gold-dk)':'var(--cream-dk)'};display:flex;align-items:center;justify-content:center;font-size:0.7rem;font-weight:700;color:${i<2?'var(--brown)':'var(--brown-lt)'};flex-shrink:0">${i+1}</div>
+                <div style="flex:1;min-width:0">
+                  <div style="font-size:0.85rem;color:var(--brown);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(name)}</div>
+                  <div style="font-size:0.72rem;color:var(--brown-lt)">${stats.qty} sold</div>
+                </div>
+                <div style="font-size:0.85rem;font-weight:700;color:var(--gold-dk);white-space:nowrap">${fmt(stats.revenue)}</div>
+              </div>`).join('') :
+              `<div style="padding:1.5rem;text-align:center;color:var(--brown-lt);font-style:italic;font-size:0.85rem">No orders yet</div>`}
+          </div>
+        </div>
+
+        <!-- QUICK ACTIONS -->
+        <div class="panel">
+          <div class="panel-header"><div class="panel-title">⚡ Quick Actions</div></div>
+          <div style="padding:1rem;display:flex;flex-direction:column;gap:0.6rem">
+            <button onclick="showPage('cod')" style="padding:0.65rem 1rem;background:var(--cream);border:1px solid var(--cream-dk);color:var(--brown);font-size:0.85rem;font-family:inherit;cursor:pointer;text-align:left;transition:background 0.15s" onmouseover="this.style.background='var(--cream-dk)'" onmouseout="this.style.background='var(--cream)'">📦 Manage COD Orders ${pendingCOD.length > 0 ? `<span style="background:var(--red);color:#fff;border-radius:10px;padding:1px 7px;font-size:0.72rem;margin-left:6px">${pendingCOD.length}</span>` : ''}</button>
+            <button onclick="showPage('orders')" style="padding:0.65rem 1rem;background:var(--cream);border:1px solid var(--cream-dk);color:var(--brown);font-size:0.85rem;font-family:inherit;cursor:pointer;text-align:left;transition:background 0.15s" onmouseover="this.style.background='var(--cream-dk)'" onmouseout="this.style.background='var(--cream)'">📋 All Orders</button>
+            <button onclick="showPage('customers')" style="padding:0.65rem 1rem;background:var(--cream);border:1px solid var(--cream-dk);color:var(--brown);font-size:0.85rem;font-family:inherit;cursor:pointer;text-align:left;transition:background 0.15s" onmouseover="this.style.background='var(--cream-dk)'" onmouseout="this.style.background='var(--cream)'">👥 View Customers (${totalCust})</button>
+            <button onclick="showPage('newsletter')" style="padding:0.65rem 1rem;background:var(--cream);border:1px solid var(--cream-dk);color:var(--brown);font-size:0.85rem;font-family:inherit;cursor:pointer;text-align:left;transition:background 0.15s" onmouseover="this.style.background='var(--cream-dk)'" onmouseout="this.style.background='var(--cream)'">📧 Newsletter (${totalNews})</button>
+            <button onclick="showPage('discounts')" style="padding:0.65rem 1rem;background:var(--cream);border:1px solid var(--cream-dk);color:var(--brown);font-size:0.85rem;font-family:inherit;cursor:pointer;text-align:left;transition:background 0.15s" onmouseover="this.style.background='var(--cream-dk)'" onmouseout="this.style.background='var(--cream)'">🏷️ Manage Discount Codes</button>
+            <button onclick="showPage('feedback')" style="padding:0.65rem 1rem;background:var(--cream);border:1px solid var(--cream-dk);color:var(--brown);font-size:0.85rem;font-family:inherit;cursor:pointer;text-align:left;transition:background 0.15s" onmouseover="this.style.background='var(--cream-dk)'" onmouseout="this.style.background='var(--cream)'">💬 View Feedback</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  `;
+
+  // Draw charts
+  new Chart(document.getElementById('chart-daily'), {
+    type: 'bar',
+    data: {
+      labels: days,
+      datasets: [
+        { label: 'Orders', data: counts, backgroundColor: 'rgba(200,169,110,0.7)', borderColor: '#9d7a45', borderWidth: 1, yAxisID: 'y' },
+        { label: 'Revenue (₹)', data: revenues, type: 'line', borderColor: '#4a2c0a', backgroundColor: 'rgba(74,44,10,0.08)', borderWidth: 2, pointRadius: 3, tension: 0.3, yAxisID: 'y1' },
+      ],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: true, labels: { font: { size: 11 }, color: '#7a4f2a' } } },
+      scales: {
+        y: { beginAtZero: true, ticks: { color: '#a67c52', font:{size:10} }, grid: { color: 'rgba(200,169,110,0.1)' } },
+        y1: { position: 'right', beginAtZero: true, ticks: { color: '#4a2c0a', font:{size:10} }, grid: { drawOnChartArea: false } },
+        x: { ticks: { color: '#a67c52', font:{size:10} }, grid: { color: 'rgba(200,169,110,0.1)' } },
+      },
+    },
+  });
+
+  new Chart(document.getElementById('chart-payment'), {
+    type: 'doughnut',
+    data: {
+      labels: ['COD', 'UPI', 'Card'],
+      datasets: [{ data: [pmCounts.cod, pmCounts.upi, pmCounts.card], backgroundColor: ['#c8a96e','#4a2c0a','#9d7a45'], borderWidth: 2, borderColor: '#fffef8' }],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom', labels: { font:{size:11}, color:'#7a4f2a' } } },
+    },
+  });
+}
+
+/* ══════════════════════════════════════════════════════
+   ORDERS PAGE
+══════════════════════════════════════════════════════ */
+async function renderOrders(filter='all', dateFrom='', dateTo='', search='') {
+  let path = '/rest/v1/orders?select=*&order=created_at.desc';
+  if (filter === 'cod')     path += '&payment_method=eq.cod';
+  if (filter === 'upi')     path += '&payment_method=eq.upi';
+  if (filter === 'pending') path += '&payment_status=eq.pending';
+  if (filter === 'paid')    path += '&payment_status=eq.paid';
+  if (dateFrom) path += `&created_at=gte.${dateFrom}T00:00:00`;
+  if (dateTo)   path += `&created_at=lte.${dateTo}T23:59:59`;
+
+  const data = await sbQuery('GET', path);
+  let orders = Array.isArray(data) ? data : [];
+
+  // Client-side search
+  if (search) {
+    const s = search.toLowerCase();
+    orders = orders.filter(o =>
+      (o.order_id||'').toLowerCase().includes(s) ||
+      (o.customer_name||'').toLowerCase().includes(s) ||
+      (o.customer_email||'').toLowerCase().includes(s) ||
+      (o.customer_phone||'').includes(s)
+    );
+  }
+
+  document.getElementById('page-content').innerHTML = `
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">All Orders (${orders.length})</div>
+        <div class="panel-actions">
+          <button class="btn-sm primary" onclick="exportOrdersCSV()">⬇ Export CSV</button>
+          <input class="search-box" type="text" placeholder="Search name, email, order ID…"
+            value="${esc(search)}" oninput="renderOrders('${filter}','${dateFrom}','${dateTo}',this.value)" />
+          <input type="date" class="date-input" value="${dateFrom}"
+            onchange="renderOrders('${filter}',this.value,'${dateTo}','${search}')"
+            title="From date" />
+          <input type="date" class="date-input" value="${dateTo}"
+            onchange="renderOrders('${filter}','${dateFrom}',this.value,'${search}')"
+            title="To date" />
+          <select class="filter-select" onchange="renderOrders(this.value,'${dateFrom}','${dateTo}','${search}')">
+            <option value="all"     ${filter==='all'    ?'selected':''}>All Methods</option>
+            <option value="cod"     ${filter==='cod'    ?'selected':''}>COD Only</option>
+            <option value="upi"     ${filter==='upi'    ?'selected':''}>UPI Only</option>
+            <option value="pending" ${filter==='pending'?'selected':''}>Pending Payment</option>
+            <option value="paid"    ${filter==='paid'   ?'selected':''}>Paid</option>
+          </select>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>Order ID</th><th>Customer</th><th>City</th>
+            <th>Total</th><th>Payment</th><th>Pay Status</th>
+            <th>Order Status</th><th>Date</th><th>Actions</th>
+          </tr></thead>
+          <tbody>
+            ${orders.length ? orders.map(o => orderRow(o)).join('') :
+              `<tr><td colspan="9"><div class="empty-state"><div class="empty-icon">📦</div>No orders found</div></td></tr>`}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+/* ── Export current filtered orders as CSV ── */
+async function exportOrdersCSV() {
+  const data = await sbQuery('GET', '/rest/v1/orders?select=*&order=created_at.desc');
+  const orders = Array.isArray(data) ? data : [];
+  const flat = orders.map(o => ({
+    order_id: o.order_id,
+    customer_name: o.customer_name,
+    customer_email: o.customer_email,
+    customer_phone: o.customer_phone || '',
+    delivery_address: o.delivery_address || '',
+    delivery_city: o.delivery_city || '',
+    delivery_state: o.delivery_state || '',
+    delivery_pin: o.delivery_pin || '',
+    subtotal: o.subtotal || 0,
+    delivery_charge: o.delivery_charge || 0,
+    tax: o.tax || 0,
+    discount_amount: o.discount_amount || 0,
+    discount_code: o.discount_code || '',
+    total: o.total || 0,
+    payment_method: o.payment_method || '',
+    payment_status: o.payment_status || '',
+    order_status: o.status || '',
+    payment_id: o.payment_id || '',
+    created_at: o.created_at || '',
+  }));
+  downloadCSV(flat, `mellow-orders-${new Date().toISOString().slice(0,10)}.csv`);
+}
+
+function orderRow(o) {
+  const pmBadge = `<span class="badge badge-${o.payment_method}">${o.payment_method?.toUpperCase()}</span>`;
+  const payBadge = `<span class="badge badge-${o.payment_status}">${o.payment_status==='paid'?'✅ Paid':'⏳ Pending'}</span>`;
+  const stBadge  = `<span class="badge badge-${o.status}">${o.status||'confirmed'}</span>`;
+  return `<tr>
+    <td><strong style="color:var(--brown)">#${esc(o.order_id)}</strong></td>
+    <td>
+      <div style="font-weight:600;color:var(--brown)">${esc(o.customer_name)}</div>
+      <div style="font-size:0.75rem;color:var(--brown-lt)">${esc(o.customer_email)}</div>
+    </td>
+    <td style="font-size:0.82rem">${esc(o.delivery_city||'')}</td>
+    <td style="font-weight:700;color:var(--gold-dk)">${fmt(o.total)}</td>
+    <td>${pmBadge}</td>
+    <td>${payBadge}</td>
+    <td>${stBadge}</td>
+    <td style="font-size:0.78rem;color:var(--brown-lt)">${fmtDate(o.created_at)}</td>
+    <td>
+      <div class="flex-row">
+        <button class="btn-sm" onclick="openOrderModal('${o.order_id}')">👁 View</button>
+        <button class="btn-sm" onclick="downloadAdminInvoice('${o.order_id}')">📄</button>
+      </div>
+    </td>
+  </tr>`;
+}
+
+/* ══════════════════════════════════════════════════════
+   COD MANAGEMENT
+══════════════════════════════════════════════════════ */
+async function renderCOD() {
+  const data = await sbQuery('GET', '/rest/v1/orders?payment_method=eq.cod&order=created_at.desc&select=*');
+  const orders = Array.isArray(data) ? data : [];
+  const pending   = orders.filter(o => o.payment_status === 'pending');
+  const delivered = orders.filter(o => o.payment_status === 'paid');
+
+  document.getElementById('page-content').innerHTML = `
+    <div class="stats-grid" style="grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:1.5rem">
+      <div class="stat-card">
+        <div class="stat-label">Total COD Orders</div>
+        <div class="stat-value">${orders.length}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Pending Payment</div>
+        <div class="stat-value" style="color:var(--red)">${pending.length}</div>
+        <div class="stat-sub">${fmt(pending.reduce((s,o)=>s+(o.total||0),0))} outstanding</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Confirmed Paid</div>
+        <div class="stat-value" style="color:var(--green)">${delivered.length}</div>
+        <div class="stat-sub">${fmt(delivered.reduce((s,o)=>s+(o.total||0),0))} collected</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">⏳ Pending COD Orders (${pending.length})</div>
+        <div class="panel-actions">
+          <div style="font-size:0.8rem;color:var(--brown-lt)">Mark as paid once cash received</div>
+          <button class="btn-sm primary" onclick="exportCODCSV()">⬇ Export CSV</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>Order ID</th><th>Customer</th><th>Phone</th>
+            <th>Amount Due</th><th>City</th><th>Date</th><th>Action</th>
+          </tr></thead>
+          <tbody>
+            ${pending.length ? pending.map(o => `<tr>
+              <td><strong>#${esc(o.order_id)}</strong></td>
+              <td>${esc(o.customer_name)}</td>
+              <td style="font-family:monospace">${esc(o.customer_phone||'—')}</td>
+              <td style="font-weight:700;color:var(--red)">${fmt(o.total)}</td>
+              <td>${esc(o.delivery_city||'—')}</td>
+              <td style="font-size:0.78rem">${fmtDateTime(o.created_at)}</td>
+              <td>
+                <div class="flex-row">
+                  <button class="btn-sm success" onclick="confirmCODPaid('${o.order_id}')">✅ Mark Paid + Delivered</button>
+                  <button class="btn-sm" onclick="openOrderModal('${o.order_id}')">👁 Details</button>
+                </div>
+              </td>
+            </tr>`).join('') :
+              `<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">✅</div>All COD orders are settled!</div></td></tr>`}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">✅ Paid COD Orders (${delivered.length})</div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>Order ID</th><th>Customer</th><th>Amount</th><th>City</th><th>Date</th><th>Actions</th>
+          </tr></thead>
+          <tbody>
+            ${delivered.slice(0,20).map(o => `<tr>
+              <td><strong>#${esc(o.order_id)}</strong></td>
+              <td>${esc(o.customer_name)}</td>
+              <td style="color:var(--green);font-weight:700">${fmt(o.total)}</td>
+              <td>${esc(o.delivery_city||'—')}</td>
+              <td style="font-size:0.78rem">${fmtDate(o.created_at)}</td>
+              <td>
+                <div class="flex-row">
+                  <button class="btn-sm" onclick="openOrderModal('${o.order_id}')">👁 View</button>
+                  <button class="btn-sm" onclick="downloadAdminInvoice('${o.order_id}')">📄 Invoice</button>
+                </div>
+              </td>
+            </tr>`).join('') || `<tr><td colspan="6"><div class="empty-state">No paid COD orders yet</div></td></tr>`}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+async function confirmCODPaid(orderId) {
+  if (!confirm(`Confirm that cash was received for order #${orderId}?\nThis will mark it as PAID and DELIVERED.`)) return;
+  const res = await sbQuery('PATCH', `/rest/v1/orders?order_id=eq.${orderId}`, {
+    payment_status: 'paid',
+    status: 'delivered',
+    updated_at: new Date().toISOString(),
+  });
+  toast(`✅ Order #${orderId} marked as Paid + Delivered`);
+  renderCOD();
+}
+
+/* ══════════════════════════════════════════════════════
+   CUSTOMERS PAGE
+══════════════════════════════════════════════════════ */
+let _customersCache = null;
+let _allOrdersCache = null;
+
+async function renderCustomers(search='') {
+  const [usersData, ordersData] = await Promise.all([
+    sbQuery('GET', '/rest/v1/users?select=*&order=created_at.desc'),
+    sbQuery('GET', '/rest/v1/orders?select=order_id,user_id,customer_email,customer_name,total,status,payment_status,payment_method,created_at,items,delivery_city,delivery_state&order=created_at.desc'),
+  ]);
+
+  _customersCache = Array.isArray(usersData) ? usersData : [];
+  _allOrdersCache = Array.isArray(ordersData) ? ordersData : [];
+
+  let customers = _customersCache;
+  if (search) {
+    const s = search.toLowerCase();
+    customers = customers.filter(c =>
+      (c.name||'').toLowerCase().includes(s) ||
+      (c.email||'').toLowerCase().includes(s) ||
+      (c.phone||'').includes(s)
+    );
+  }
+
+  // Build order counts per user
+  const orderMap = {};
+  _allOrdersCache.forEach(o => {
+    if (o.user_id) {
+      if (!orderMap[o.user_id]) orderMap[o.user_id] = { count:0, total:0 };
+      orderMap[o.user_id].count++;
+      orderMap[o.user_id].total += (o.total||0);
+    }
+  });
+
+  document.getElementById('page-content').innerHTML = `
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">All Customers (${customers.length})</div>
+        <div class="panel-actions">
+          <button class="btn-sm primary" onclick="exportCustomersCSV()">⬇ Export CSV</button>
+          <input class="search-box" type="text" placeholder="Search name, email, phone…"
+            value="${esc(search)}" oninput="renderCustomers(this.value)" />
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>Name</th><th>Email</th><th>Phone</th>
+            <th>Orders</th><th>Total Spent</th><th>Joined</th><th>Actions</th>
+          </tr></thead>
+          <tbody>
+            ${customers.length ? customers.map(c => {
+              const stats = orderMap[c.id] || {count:0,total:0};
+              return `<tr>
+                <td><strong style="color:var(--brown)">${esc(c.name||'—')}</strong></td>
+                <td style="font-size:0.82rem">${esc(c.email)}</td>
+                <td style="font-family:monospace;font-size:0.82rem">${esc(c.phone||'—')}</td>
+                <td style="font-weight:700;color:var(--brown)">${stats.count}</td>
+                <td style="font-weight:700;color:var(--gold-dk)">${fmt(stats.total)}</td>
+                <td style="font-size:0.78rem;color:var(--brown-lt)">${fmtDate(c.created_at)}</td>
+                <td>
+                  <button class="btn-sm primary" onclick="openCustomerDetail('${c.id}')">📋 Orders</button>
+                </td>
+              </tr>`;
+            }).join('') :
+              `<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">👥</div>No customers found</div></td></tr>`}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+async function openCustomerDetail(userId) {
+  const [userData, ordersData] = await Promise.all([
+    sbQuery('GET', `/rest/v1/users?id=eq.${userId}&select=*`),
+    sbQuery('GET', `/rest/v1/orders?user_id=eq.${userId}&select=*&order=created_at.desc`),
+  ]);
+
+  const cust   = Array.isArray(userData) ? userData[0] : null;
+  const orders = Array.isArray(ordersData) ? ordersData : [];
+  if (!cust) { toast('Customer not found'); return; }
+
+  const totalSpent = orders.reduce((s,o)=>s+(o.total||0),0);
+  const initials   = (cust.name||cust.email||'?').slice(0,2).toUpperCase();
+
+  openModal(`
+    <div class="modal-header">
+      <div class="modal-title">👤 Customer — ${esc(cust.name||cust.email)}</div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <!-- Customer Info -->
+      <div style="display:flex;align-items:center;gap:1.2rem;margin-bottom:1.5rem;padding:1rem;background:var(--cream);border:1px solid var(--cream-dk);border-left:3px solid var(--gold)">
+        <div style="width:56px;height:56px;border-radius:50%;background:var(--brown);color:var(--gold);display:flex;align-items:center;justify-content:center;font-size:1.3rem;font-weight:900;flex-shrink:0">${initials}</div>
+        <div style="flex:1">
+          <div style="font-size:1.1rem;font-weight:700;color:var(--brown)">${esc(cust.name||'—')}</div>
+          <div style="font-size:0.85rem;color:var(--brown-lt)">${esc(cust.email)}</div>
+          ${cust.phone?`<div style="font-size:0.82rem;color:var(--brown-lt)">📱 ${esc(cust.phone)}</div>`:''}
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:0.7rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--brown-lt)">Total Spent</div>
+          <div style="font-size:1.5rem;font-weight:900;color:var(--gold-dk)">${fmt(totalSpent)}</div>
+          <div style="font-size:0.78rem;color:var(--brown-lt)">${orders.length} order${orders.length!==1?'s':''}</div>
+        </div>
+      </div>
+
+      <!-- Orders List -->
+      <div style="font-size:0.78rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--brown-lt);margin-bottom:0.8rem">Order History</div>
+      ${orders.length ? orders.map(o => `
+        <div class="cust-order-card">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.6rem">
+            <div>
+              <strong style="color:var(--brown)">#${esc(o.order_id)}</strong>
+              <span style="font-size:0.78rem;color:var(--brown-lt);margin-left:0.5rem">${fmtDateTime(o.created_at)}</span>
+            </div>
+            <div style="display:flex;gap:0.5rem;align-items:center">
+              <span class="badge badge-${o.payment_method}">${o.payment_method?.toUpperCase()}</span>
+              <span class="badge badge-${o.payment_status}">${o.payment_status==='paid'?'✅ Paid':'⏳ Pending'}</span>
+              <span class="badge badge-${o.status}">${o.status}</span>
+              <strong style="color:var(--gold-dk)">${fmt(o.total)}</strong>
+            </div>
+          </div>
+          <!-- Items -->
+          ${(o.items||[]).slice(0,3).map(i=>`
+            <div style="font-size:0.82rem;color:var(--brown-mid);padding:0.15rem 0">${esc(i.name)} ×${i.qty} — ${fmt(i.total)}</div>
+          `).join('')}
+          ${(o.items||[]).length>3?`<div style="font-size:0.78rem;color:var(--brown-lt)">+${o.items.length-3} more…</div>`:''}
+          <!-- Actions -->
+          <div style="margin-top:0.7rem;display:flex;gap:0.5rem;flex-wrap:wrap">
+            <button class="btn-sm" onclick="openOrderModal('${o.order_id}')">👁 Full Details</button>
+            <button class="btn-sm" onclick="downloadAdminInvoice('${o.order_id}')">📄 Invoice</button>
+            ${o.payment_method==='cod' && o.payment_status==='pending'
+              ? `<button class="btn-sm success" onclick="confirmCODPaid('${o.order_id}');closeModal()">✅ Mark Paid</button>`
+              : ''}
+          </div>
+        </div>
+      `).join('') : '<div class="empty-state" style="padding:2rem">No orders from this customer yet.</div>'}
+    </div>
+  `);
+}
+
+/* ══════════════════════════════════════════════════════
+   ORDER DETAIL MODAL
+══════════════════════════════════════════════════════ */
+async function openOrderModal(orderId) {
+  const data = await sbQuery('GET', `/rest/v1/orders?order_id=eq.${orderId}&select=*`);
+  const o = Array.isArray(data) ? data[0] : null;
+  if (!o) { toast('Order not found'); return; }
+
+  const items = o.items || [];
+  const isCOD = o.payment_method === 'cod';
+
+  openModal(`
+    <div class="modal-header">
+      <div class="modal-title">Order #${esc(o.order_id)}</div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="order-detail-grid">
+        <!-- Customer -->
+        <div class="detail-section">
+          <h4>👤 Customer</h4>
+          <div class="detail-row"><span>Name</span><span>${esc(o.customer_name)}</span></div>
+          <div class="detail-row"><span>Email</span><span style="font-size:0.82rem">${esc(o.customer_email)}</span></div>
+          <div class="detail-row"><span>Phone</span><span>${esc(o.customer_phone||'—')}</span></div>
+        </div>
+        <!-- Delivery -->
+        <div class="detail-section">
+          <h4>📍 Delivery Address</h4>
+          <div class="detail-row"><span>Address</span><span style="font-size:0.82rem">${esc(o.delivery_address||'—')}</span></div>
+          <div class="detail-row"><span>City</span><span>${esc(o.delivery_city||'—')}</span></div>
+          <div class="detail-row"><span>State</span><span>${esc(o.delivery_state||'—')}</span></div>
+          <div class="detail-row"><span>PIN</span><span>${esc(o.delivery_pin||'—')}</span></div>
+        </div>
+        <!-- Payment -->
+        <div class="detail-section">
+          <h4>💳 Payment</h4>
+          <div class="detail-row"><span>Method</span><span><span class="badge badge-${o.payment_method}">${o.payment_method?.toUpperCase()}</span></span></div>
+          <div class="detail-row"><span>Status</span><span><span class="badge badge-${o.payment_status}">${o.payment_status==='paid'?'✅ Paid':'⏳ Pending'}</span></span></div>
+          ${o.payment_id && o.payment_id!=='COD' ? `<div class="detail-row"><span>Payment ID</span><span style="font-family:monospace;font-size:0.78rem">${esc(o.payment_id)}</span></div>` : ''}
+          <div class="detail-row"><span>Date</span><span>${fmtDateTime(o.created_at)}</span></div>
+        </div>
+        <!-- Order -->
+        <div class="detail-section">
+          <h4>📋 Order Info</h4>
+          <div class="detail-row"><span>Order ID</span><span>${esc(o.order_id)}</span></div>
+          <div class="detail-row"><span>Status</span><span><span class="badge badge-${o.status}">${o.status}</span></span></div>
+          <div class="detail-row"><span>Subtotal</span><span>${fmt(o.subtotal)}</span></div>
+          <div class="detail-row"><span>Delivery</span><span>${(o.delivery_charge||0)===0?'FREE':fmt(o.delivery_charge)}</span></div>
+          <div class="detail-row"><span>GST 5%</span><span>${fmt(o.tax)}</span></div>
+          ${o.discount_amount>0?`<div class="detail-row" style="color:var(--green)"><span>Discount</span><span>-${fmt(o.discount_amount)} (${o.discount_code||''})</span></div>`:''}
+          <div class="detail-row" style="font-size:1rem;font-weight:700"><span>Total</span><span style="color:var(--gold-dk)">${fmt(o.total)}</span></div>
+        </div>
+      </div>
+
+      <!-- Items Table -->
+      <div style="margin-bottom:1.2rem">
+        <div style="font-size:0.78rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--brown-lt);margin-bottom:0.6rem">Items Ordered</div>
+        <table style="font-size:0.88rem">
+          <thead><tr>
+            <th>Product</th><th style="text-align:center">Qty</th>
+            <th style="text-align:right">Unit Price</th><th style="text-align:right">Total</th>
+          </tr></thead>
+          <tbody>
+            ${items.map(i=>`<tr>
+              <td>${esc(i.name)}</td>
+              <td style="text-align:center">×${i.qty}</td>
+              <td style="text-align:right">₹${Number(i.price||0).toLocaleString('en-IN')}</td>
+              <td style="text-align:right;font-weight:700;color:var(--gold-dk)">₹${Number(i.total||0).toLocaleString('en-IN')}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Status Update -->
+      <div style="background:var(--cream);border:1px solid var(--cream-dk);padding:1rem;margin-bottom:0.5rem">
+        <div style="font-size:0.78rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--brown-lt);margin-bottom:0.8rem">Update Order Status</div>
+        <div style="display:flex;gap:0.8rem;flex-wrap:wrap;align-items:center">
+          <select id="status-select" class="filter-select">
+            <option value="confirmed" ${o.status==='confirmed'?'selected':''}>Confirmed</option>
+            <option value="processing" ${o.status==='processing'?'selected':''}>Processing</option>
+            <option value="shipped" ${o.status==='shipped'?'selected':''}>Shipped</option>
+            <option value="delivered" ${o.status==='delivered'?'selected':''}>Delivered</option>
+            <option value="cancelled" ${o.status==='cancelled'?'selected':''}>Cancelled</option>
+          </select>
+          <select id="paystatus-select" class="filter-select">
+            <option value="pending" ${o.payment_status==='pending'?'selected':''}>Payment Pending</option>
+            <option value="paid"    ${o.payment_status==='paid'   ?'selected':''}>Paid</option>
+          </select>
+          <button class="btn-sm primary" onclick="updateOrderStatus('${o.order_id}')">Save Status</button>
+          ${isCOD && o.payment_status==='pending' ?
+            `<button class="btn-sm success" onclick="confirmCODPaid('${o.order_id}');closeModal()">✅ Mark COD Paid + Delivered</button>` : ''}
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-sm" onclick="downloadAdminInvoice('${o.order_id}')">📄 Download Invoice</button>
+      <button class="btn-sm" onclick="closeModal()">Close</button>
+    </div>
+  `);
+}
+
+async function updateOrderStatus(orderId) {
+  const status        = document.getElementById('status-select')?.value;
+  const payment_status = document.getElementById('paystatus-select')?.value;
+  await sbQuery('PATCH', `/rest/v1/orders?order_id=eq.${orderId}`, {
+    status, payment_status, updated_at: new Date().toISOString()
+  });
+  toast(`✅ Order #${orderId} status updated`);
+  closeModal();
+}
+
+/* ══════════════════════════════════════════════════════
+   NEWSLETTER
+══════════════════════════════════════════════════════ */
+async function renderNewsletter(search='') {
+  const data = await sbQuery('GET', '/rest/v1/newsletter_subscribers?select=*&order=subscribed_at.desc');
+  let subs = Array.isArray(data) ? data : [];
+  if (search) subs = subs.filter(s => (s.email||'').toLowerCase().includes(search.toLowerCase()) || (s.name||'').toLowerCase().includes(search.toLowerCase()));
+
+  document.getElementById('page-content').innerHTML = `
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">Newsletter Subscribers (${subs.length})</div>
+        <div class="panel-actions">
+          <button class="btn-sm primary" onclick="exportNewsletterCSV()">⬇ Export CSV</button>
+          <input class="search-box" type="text" placeholder="Search email or name…"
+            value="${esc(search)}" oninput="renderNewsletter(this.value)" />
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Name</th><th>Email</th><th>Subscribed At</th></tr></thead>
+          <tbody>
+            ${subs.length ? subs.map(s=>`<tr>
+              <td>${esc(s.name||'—')}</td>
+              <td>${esc(s.email)}</td>
+              <td style="font-size:0.78rem;color:var(--brown-lt)">${fmtDate(s.subscribed_at)}</td>
+            </tr>`).join('') :
+            `<tr><td colspan="3"><div class="empty-state"><div class="empty-icon">📧</div>No subscribers found</div></td></tr>`}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+/* ══════════════════════════════════════════════════════
+   FEEDBACK
+══════════════════════════════════════════════════════ */
+async function renderFeedback() {
+  const data = await sbQuery('GET', '/rest/v1/feedback?select=*&order=created_at.desc');
+  const items = Array.isArray(data) ? data : [];
+
+  document.getElementById('page-content').innerHTML = `
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">Customer Feedback (${items.length})</div>
+        <button class="btn-sm primary" onclick="exportFeedbackCSV()">⬇ Export CSV</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Name</th><th>Email</th><th>Subject</th><th>Message</th><th>Date</th></tr></thead>
+          <tbody>
+            ${items.length ? items.map(f=>`<tr>
+              <td><strong>${esc(f.name||'—')}</strong></td>
+              <td style="font-size:0.82rem">${esc(f.email||'—')}</td>
+              <td><span class="badge badge-confirmed">${esc(f.subject||'General')}</span></td>
+              <td style="max-width:260px;font-size:0.82rem;color:var(--brown-mid)">
+                ${esc((f.message||'').slice(0,120))}${(f.message||'').length>120?'…':''}
+              </td>
+              <td style="font-size:0.78rem;color:var(--brown-lt)">${fmtDate(f.created_at)}</td>
+            </tr>`).join('') :
+            `<tr><td colspan="5"><div class="empty-state"><div class="empty-icon">💬</div>No feedback yet</div></td></tr>`}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+/* ══════════════════════════════════════════════════════
+   DISCOUNT CODES
+══════════════════════════════════════════════════════ */
+async function renderDiscounts(search='') {
+  const data = await sbQuery('GET', '/rest/v1/discount_codes?select=*&order=created_at.desc');
+  let codes = Array.isArray(data) ? data : [];
+  if (search) codes = codes.filter(c => (c.code||'').includes(search.toUpperCase()) || (c.user_email||'').toLowerCase().includes(search.toLowerCase()));
+
+  const unused = codes.filter(c=>!c.is_used);
+  const used   = codes.filter(c=>c.is_used);
+
+  document.getElementById('page-content').innerHTML = `
+    <div class="stats-grid" style="grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:1.5rem">
+      <div class="stat-card"><div class="stat-label">Total Codes</div><div class="stat-value">${codes.length}</div></div>
+      <div class="stat-card"><div class="stat-label">Active / Unused</div><div class="stat-value" style="color:var(--green)">${unused.length}</div></div>
+      <div class="stat-card"><div class="stat-label">Used</div><div class="stat-value">${used.length}</div></div>
+    </div>
+
+    <!-- Create New Discount Code -->
+    <div class="panel" style="margin-bottom:1.5rem">
+      <div class="panel-header">
+        <div class="panel-title">➕ Create New Discount Code</div>
+      </div>
+      <div style="padding:1.4rem 1.6rem;display:grid;grid-template-columns:1fr 1fr 1fr 1fr auto;gap:1rem;align-items:end">
+        <div>
+          <div style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--brown-lt);margin-bottom:0.3rem">Code (e.g. MELLOW20)</div>
+          <input id="new-code-val" type="text" placeholder="MELLOWXYZ"
+            style="width:100%;padding:0.6rem 0.8rem;border:1px solid var(--cream-dk);background:var(--cream);font-size:0.9rem;color:var(--brown);outline:none;text-transform:uppercase"
+            oninput="this.value=this.value.toUpperCase()" />
+        </div>
+        <div>
+          <div style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--brown-lt);margin-bottom:0.3rem">Customer Email</div>
+          <input id="new-code-email" type="email" placeholder="customer@email.com"
+            style="width:100%;padding:0.6rem 0.8rem;border:1px solid var(--cream-dk);background:var(--cream);font-size:0.9rem;color:var(--brown);outline:none" />
+        </div>
+        <div>
+          <div style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--brown-lt);margin-bottom:0.3rem">Discount %</div>
+          <input id="new-code-pct" type="number" min="1" max="99" value="10" placeholder="10"
+            style="width:100%;padding:0.6rem 0.8rem;border:1px solid var(--cream-dk);background:var(--cream);font-size:0.9rem;color:var(--brown);outline:none" />
+        </div>
+        <div>
+          <div style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--brown-lt);margin-bottom:0.3rem">Usage Type</div>
+          <select id="new-code-type"
+            style="width:100%;padding:0.6rem 0.8rem;border:1px solid var(--cream-dk);background:var(--cream);font-size:0.9rem;color:var(--brown);outline:none">
+            <option value="single">Single Use</option>
+            <option value="reusable">Reusable (unlimited)</option>
+          </select>
+        </div>
+        <button onclick="createDiscountCode()"
+          style="padding:0.6rem 1.4rem;background:var(--brown);color:var(--white);border:1px solid var(--gold);font-size:0.88rem;font-family:inherit;cursor:pointer;transition:opacity 0.2s;white-space:nowrap"
+          onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
+          Create Code
+        </button>
+      </div>
+      <div style="padding:0 1.4rem 1rem;font-size:0.78rem;color:var(--brown-lt);font-style:italic">
+        💡 <strong>Single Use</strong>: Code is disabled after first use. &nbsp;|&nbsp; <strong>Reusable</strong>: Code can be used unlimited times until admin revokes it.
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">All Discount Codes</div>
+        <div class="panel-actions">
+          <button class="btn-sm primary" onclick="exportDiscountsCSV()">⬇ Export CSV</button>
+          <input class="search-box" type="text" placeholder="Search code or email…"
+          value="${esc(search)}" oninput="renderDiscounts(this.value)" />
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>Code</th><th>Email</th><th>Discount</th>
+            <th>Type</th><th>Status</th><th>Expires</th><th>Used At</th><th>Actions</th>
+          </tr></thead>
+          <tbody>
+            ${codes.length ? codes.map(c=>`<tr>
+              <td><strong style="font-family:monospace;color:var(--brown)">${esc(c.code)}</strong></td>
+              <td style="font-size:0.82rem">${esc(c.user_email)}</td>
+              <td style="font-weight:700;color:var(--gold-dk)">${c.discount_percent}%</td>
+              <td style="font-size:0.78rem">${c.reusable
+                ? '<span class="badge badge-confirmed" style="background:#e8f0ff;color:#2a4a9a;border-color:#a0b8e0">♾ Reusable</span>'
+                : '<span class="badge" style="background:#f5f0e8;color:var(--brown-mid);border:1px solid var(--cream-dk)">1× Single</span>'}</td>
+              <td>${c.is_used && !c.reusable
+                ? '<span class="badge badge-paid">Used</span>'
+                : (new Date(c.expires_at) < new Date()
+                    ? '<span class="badge badge-cancelled">Expired</span>'
+                    : '<span class="badge badge-confirmed">Active</span>')}</td>
+              <td style="font-size:0.78rem;color:var(--brown-lt)">${fmtDate(c.expires_at)}</td>
+              <td style="font-size:0.78rem;color:var(--brown-lt)">${c.used_at?fmtDate(c.used_at):'—'}</td>
+              <td>
+                <button onclick="revokeDiscountCode('${c.id}','${esc(c.code)}')"
+                  style="padding:0.25rem 0.6rem;background:var(--red);color:#fff;border:none;font-size:0.72rem;font-family:inherit;cursor:pointer;border-radius:2px"
+                  title="Revoke / delete this code">🗑 Revoke</button>
+              </td>
+            </tr>`).join('') :
+            `<tr><td colspan="8"><div class="empty-state"><div class="empty-icon">🏷️</div>No discount codes</div></td></tr>`}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+/* ══════════════════════════════════════════════════════
+   INVOICE GENERATOR (PDF-printable popup)
+══════════════════════════════════════════════════════ */
+async function downloadAdminInvoice(orderId) {
+  const data = await sbQuery('GET', `/rest/v1/orders?order_id=eq.${orderId}&select=*`);
+  const o = Array.isArray(data) ? data[0] : null;
+  if (!o) { toast('Order not found'); return; }
+
+  const items = o.items || [];
+  const win = window.open('','_blank','width=820,height=950');
+  win.document.write(`<!DOCTYPE html><html><head>
+    <title>Invoice — ${o.order_id}</title>
+    <style>
+      *{box-sizing:border-box;margin:0;padding:0}
+      body{font-family:'Georgia',serif;background:#fff;color:#1a0f05;padding:40px;font-size:14px}
+      .header{background:#4a2c0a;color:#fffef8;padding:24px 32px;display:flex;justify-content:space-between;align-items:flex-start}
+      .header h1{font-size:28px} .header h1 span{color:#c8a96e;font-style:italic}
+      .header p{font-size:11px;color:rgba(200,169,110,0.7);letter-spacing:3px;margin-top:4px}
+      .order-box{text-align:right}
+      .order-box .label{font-size:10px;letter-spacing:2px;color:rgba(200,169,110,0.7);text-transform:uppercase}
+      .order-box .id{font-size:18px;color:#c8a96e;font-weight:700;letter-spacing:1px}
+      .gold-bar{height:4px;background:linear-gradient(90deg,#c8a96e,#9d7a45,#c8a96e)}
+      .body{padding:28px 32px}
+      .meta-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;background:#f5f0e8;padding:18px;border-left:4px solid #c8a96e;margin-bottom:24px}
+      .meta-label{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#c8a96e;margin-bottom:4px}
+      .meta-val{font-size:13px;color:#4a2c0a;line-height:1.6}
+      table{width:100%;border-collapse:collapse;margin-bottom:20px}
+      thead tr{background:#e8dfd0}
+      th{padding:10px 12px;text-align:left;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:#7a4f2a}
+      td{padding:10px 12px;border-bottom:1px solid #e8dfd0;font-size:13px;color:#4a2c0a}
+      .totals{text-align:right}
+      .total-row{display:flex;justify-content:flex-end;gap:80px;padding:4px 0;font-size:13px;color:#7a4f2a}
+      .grand-total{display:flex;justify-content:flex-end;gap:80px;padding:10px 0;font-size:18px;font-weight:700;color:#4a2c0a;border-top:2px solid #c8a96e;margin-top:6px}
+      .grand-total span:last-child{color:#9d7a45}
+      .status-badge{display:inline-block;padding:2px 10px;font-size:11px;font-weight:600;border-radius:12px;
+        background:${o.payment_status==='paid'?'#e8f5ec':'#fff8e8'};
+        color:${o.payment_status==='paid'?'#1a5c35':'#9d7a45'};
+        border:1px solid ${o.payment_status==='paid'?'#a0d0b0':'#e8d5a0'}}
+      .footer{margin-top:32px;padding-top:18px;border-top:1px solid #e8dfd0;text-align:center;font-size:11px;color:#a67c52;font-style:italic;line-height:1.7}
+      .no-print{margin-bottom:16px}
+      @media print{body{padding:0}.no-print{display:none}}
+    </style></head><body>
+    <button class="no-print" onclick="window.print()" style="padding:8px 20px;background:#4a2c0a;color:#fff;border:none;cursor:pointer;font-size:13px">🖨 Print / Save PDF</button>
+    <div class="header">
+      <div>
+        <h1>Mellow <span>Co.</span></h1>
+        <p>✦ ARTISAN MEXICAN DESSERTS ✦</p>
+        <p style="margin-top:8px;font-size:10px;color:rgba(200,169,110,0.5)">Coimbatore, Tamil Nadu, India</p>
+      </div>
+      <div class="order-box">
+        <div class="label">Tax Invoice</div>
+        <div class="id">${o.order_id}</div>
+        <div style="font-size:11px;color:rgba(200,169,110,0.6);margin-top:4px">${fmtDate(o.created_at)}</div>
+      </div>
+    </div>
+    <div class="gold-bar"></div>
+    <div class="body">
+      <div class="meta-grid">
+        <div><div class="meta-label">Bill To</div><div class="meta-val"><strong>${o.customer_name}</strong><br/>${o.customer_email}<br/>${o.customer_phone||''}</div></div>
+        <div><div class="meta-label">Delivery Address</div><div class="meta-val">${o.delivery_address||''}<br/>${o.delivery_city||''}, ${o.delivery_state||''} — ${o.delivery_pin||''}</div></div>
+        <div><div class="meta-label">Payment</div><div class="meta-val">${(o.payment_method||'').toUpperCase()}&nbsp;&nbsp;<span class="status-badge">${o.payment_status==='paid'?'✅ Paid':'⏳ Pending'}</span>${o.payment_id&&o.payment_id!=='COD'?`<br/><span style="font-size:11px;font-family:monospace;color:#7a4f2a">ID: ${o.payment_id}</span>`:''}</div></div>
+        <div><div class="meta-label">Sold By</div><div class="meta-val">Mellow Co.<br/>Coimbatore, Tamil Nadu</div></div>
+      </div>
+      <table>
+        <thead><tr><th>Item</th><th style="text-align:center">Qty</th><th style="text-align:right">Unit Price</th><th style="text-align:right">Amount</th></tr></thead>
+        <tbody>
+          ${items.map(i=>`<tr>
+            <td>${i.name}</td>
+            <td style="text-align:center">×${i.qty}</td>
+            <td style="text-align:right">₹${Number(i.price||0).toLocaleString('en-IN')}</td>
+            <td style="text-align:right;font-weight:700">₹${Number(i.total||0).toLocaleString('en-IN')}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+      <div class="totals">
+        <div class="total-row"><span>Subtotal</span><span>₹${Number(o.subtotal||0).toLocaleString('en-IN')}</span></div>
+        <div class="total-row"><span>Delivery</span><span>${(o.delivery_charge||0)===0?'FREE':'₹'+Number(o.delivery_charge).toLocaleString('en-IN')}</span></div>
+        <div class="total-row"><span>GST (5%)</span><span>₹${Number(o.tax||0).toLocaleString('en-IN')}</span></div>
+        ${(o.discount_amount||0)>0?`<div class="total-row" style="color:#2d7a4a"><span>Discount${o.discount_code?' ('+o.discount_code+')':''}</span><span>-₹${Number(o.discount_amount).toLocaleString('en-IN')}</span></div>`:''}
+        <div class="grand-total"><span>Grand Total</span><span>₹${Number(o.total||0).toLocaleString('en-IN')}</span></div>
+      </div>
+      <div class="footer">
+        ✦ Thank you for choosing Mellow Co. ✦<br/>
+        This is a computer-generated invoice. No signature required.<br/>
+        Coimbatore, Tamil Nadu, India · hello@mellowco.in
+      </div>
+    </div>
+  </body></html>`);
+  win.document.close();
+}
+
+/* ══════════════════════════════════════════════════════
+   CSV EXPORT FUNCTIONS
+══════════════════════════════════════════════════════ */
+async function exportCustomersCSV() {
+  const data = await sbQuery('GET', '/rest/v1/users?select=*&order=created_at.desc');
+  const users = Array.isArray(data) ? data : [];
+  const flat = users.map(u => ({
+    name: u.name || '',
+    email: u.email || '',
+    phone: u.phone || '',
+    member_since: u.created_at || '',
+  }));
+  downloadCSV(flat, `mellow-customers-${new Date().toISOString().slice(0,10)}.csv`);
+}
+
+async function exportNewsletterCSV() {
+  const data = await sbQuery('GET', '/rest/v1/newsletter_subscribers?select=*&order=subscribed_at.desc');
+  const subs = Array.isArray(data) ? data : [];
+  const flat = subs.map(s => ({
+    email: s.email || '',
+    name: s.name || '',
+    subscribed_at: s.subscribed_at || '',
+  }));
+  downloadCSV(flat, `mellow-newsletter-${new Date().toISOString().slice(0,10)}.csv`);
+}
+
+async function exportFeedbackCSV() {
+  const data = await sbQuery('GET', '/rest/v1/feedback?select=*&order=created_at.desc');
+  const items = Array.isArray(data) ? data : [];
+  const flat = items.map(f => ({
+    name: f.name || '',
+    email: f.email || '',
+    subject: f.subject || '',
+    message: (f.message || '').replace(/\n/g, ' '),
+    created_at: f.created_at || '',
+  }));
+  downloadCSV(flat, `mellow-feedback-${new Date().toISOString().slice(0,10)}.csv`);
+}
+
+async function createDiscountCode() {
+  const code      = (document.getElementById('new-code-val')?.value   || '').trim().toUpperCase();
+  const email     = (document.getElementById('new-code-email')?.value || '').trim().toLowerCase();
+  const pct       = parseInt(document.getElementById('new-code-pct')?.value || '10');
+  const codeType  = document.getElementById('new-code-type')?.value || 'single';
+  const isReusable = codeType === 'reusable';
+
+  if (!code || !email) { toast('❌ Code and email are required'); return; }
+  if (!code.match(/^[A-Z0-9]+$/)) { toast('❌ Code must be letters/numbers only'); return; }
+  if (pct < 1 || pct > 99) { toast('❌ Discount must be 1–99%'); return; }
+
+  // Reusable codes get a far-future expiry (10 years); single-use get 30 days
+  const exp = isReusable
+    ? new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000).toISOString()
+    : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+
+  const result = await sbQuery('POST', '/rest/v1/discount_codes', {
+    code,
+    user_email:       email,
+    discount_percent: pct,
+    is_used:          false,
+    reusable:         isReusable,
+    expires_at:       exp,
+  });
+  if (Array.isArray(result) || (result && !result.code)) {
+    const typeLabel = isReusable ? 'reusable (unlimited uses)' : 'single-use';
+    toast(`✅ Code ${code} created — ${pct}% off · ${typeLabel}`);
+    renderDiscounts();
+  } else {
+    toast('❌ ' + (result?.message || result?.details || 'Failed — code may already exist'));
+  }
+}
+
+/* Revoke (delete) a discount code */
+async function revokeDiscountCode(id, code) {
+  if (!confirm(`Revoke code "${code}"? This cannot be undone.`)) return;
+  const result = await sbQuery('DELETE', `/rest/v1/discount_codes?id=eq.${id}`);
+  toast(`🗑 Code ${code} revoked`);
+  renderDiscounts();
+}
+
+async function exportCODCSV() {
+  const data = await sbQuery('GET', '/rest/v1/orders?payment_method=eq.cod&order=created_at.desc&select=*');
+  const orders = Array.isArray(data) ? data : [];
+  const flat = orders.map(o => ({
+    order_id: o.order_id,
+    customer_name: o.customer_name,
+    customer_email: o.customer_email,
+    customer_phone: o.customer_phone || '',
+    delivery_city: o.delivery_city || '',
+    delivery_state: o.delivery_state || '',
+    total: o.total || 0,
+    payment_status: o.payment_status || '',
+    order_status: o.status || '',
+    created_at: o.created_at || '',
+  }));
+  downloadCSV(flat, `mellow-cod-orders-${new Date().toISOString().slice(0,10)}.csv`);
+}
+
+async function exportDiscountsCSV() {
+  const data = await sbQuery('GET', '/rest/v1/discount_codes?select=*&order=created_at.desc');
+  const codes = Array.isArray(data) ? data : [];
+  const flat = codes.map(c => ({
+    code: c.code || '',
+    user_email: c.user_email || '',
+    discount_percent: c.discount_percent || 0,
+    is_used: c.is_used ? 'Yes' : 'No',
+    used_at: c.used_at || '',
+    expires_at: c.expires_at || '',
+    created_at: c.created_at || '',
+  }));
+  downloadCSV(flat, `mellow-discounts-${new Date().toISOString().slice(0,10)}.csv`);
+}
+
+/* ══════════════════════════════════════════════════════
+   MODAL HELPERS
+══════════════════════════════════════════════════════ */
+function openModal(html) {
+  const wrap = document.getElementById('modal-container');
+  wrap.innerHTML = `
+    <div class="modal-overlay" onclick="handleOverlayClick(event)">
+      <div class="modal">${html}</div>
+    </div>`;
+}
+function closeModal() {
+  document.getElementById('modal-container').innerHTML = '';
+}
+function handleOverlayClick(e) {
+  if (e.target.classList.contains('modal-overlay')) closeModal();
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+/* ══════════════════════════════════════════════════════
+   INIT
+══════════════════════════════════════════════════════ */
+checkExistingSession();
+</script>
+</body>
+</html>

@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mellow Co. — Artisan Mexican Desserts</title>
+  <link rel="icon" type="image/svg+xml" href="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRP-uq7xU6FATSkp6EY7HNCTi4lgIlG4TmTkQ&s,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='12' fill='%234a2c0a'/><text x='50%25' y='54%25' dominant-baseline='middle' text-anchor='middle' font-family='Georgia,serif' font-size='38' font-weight='900' fill='%23c8a96e'>M</text></svg>" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,400;1,700&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=IM+Fell+English:ital@0;1&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+  <!-- Auth modal styles -->
+  <style>
+    /* ── AUTH MODAL OVERLAY ── */
+    .auth-overlay {
+      position: fixed; inset: 0; z-index: 2000;
+      background: rgba(26,15,5,0.72);
+      backdrop-filter: blur(6px);
+      display: flex; align-items: center; justify-content: center;
+      padding: 1rem;
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+    .auth-overlay.open {
+      opacity: 1; pointer-events: all;
+    }
+
+    /* ── AUTH CARD ── */
+    .auth-card {
+      background: #fffef8;
+      border: 1px solid #e8dfd0;
+      border-top: 4px solid #c8a96e;
+      width: 100%; max-width: 480px;
+      padding: 0;
+      border-radius: 16px;
+      box-shadow: 0 30px 80px rgba(74,44,10,0.35), 0 8px 20px rgba(74,44,10,0.15);
+      transform: translateY(24px) scale(0.97);
+      transition: transform 0.35s cubic-bezier(0.23,1,0.32,1);
+      overflow: hidden;
+      position: relative;
+    }
+    .auth-overlay.open .auth-card {
+      transform: translateY(0) scale(1);
+    }
+
+    /* ── DECORATIVE TOP BAND ── */
+    .auth-deco {
+      background: linear-gradient(135deg, #4a2c0a 0%, #7a4f2a 50%, #4a2c0a 100%);
+      padding: 1.8rem 2.2rem 1.4rem;
+      border-radius: 12px 12px 0 0;
+      position: relative; overflow: hidden;
+    }
+    .auth-deco::before {
+      content: '"';
+      position: absolute; right: 1rem; top: -0.5rem;
+      font-family: 'Playfair Display', serif;
+      font-size: 9rem; color: rgba(200,169,110,0.1);
+      line-height: 1; pointer-events: none;
+    }
+    .auth-deco-logo {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.45rem; font-weight: 900;
+      color: #fffef8; letter-spacing: 0.05em;
+      margin-bottom: 0.3rem;
+    }
+    .auth-deco-logo span { color: #c8a96e; font-style: italic; }
+    .auth-deco-sub {
+      font-family: 'IM Fell English', serif;
+      font-size: 0.78rem; letter-spacing: 0.18em;
+      text-transform: uppercase; color: rgba(200,169,110,0.75);
+    }
+
+    /* ── TAB SWITCHER ── */
+    .auth-tabs {
+      display: flex; border-bottom: 1px solid #e8dfd0;
+      background: #f5f0e8;
+    }
+    .auth-tab {
+      flex: 1; padding: 0.9rem 1rem;
+      background: none; border: none;
+      font-family: 'IM Fell English', serif;
+      font-size: 0.9rem; letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #a67c52; cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all 0.2s;
+    }
+    .auth-tab.active {
+      color: #4a2c0a;
+      border-bottom: 2px solid #c8a96e;
+      background: #fffef8;
+    }
+    .auth-tab:hover:not(.active) { color: #7a4f2a; background: #ede8df; }
+
+    /* ── FORM BODY ── */
+    .auth-body { padding: 1.8rem 2.2rem 2rem; }
+
+    /* ── INPUT GROUPS ── */
+    .auth-field { margin-bottom: 1.1rem; position: relative; }
+    .auth-label {
+      display: block;
+      font-family: 'IM Fell English', serif;
+      font-size: 0.72rem; letter-spacing: 0.16em;
+      text-transform: uppercase; color: #7a4f2a;
+      margin-bottom: 0.4rem;
+    }
+    .auth-input-wrap { position: relative; }
+    .auth-input {
+      width: 100%; padding: 0.78rem 1rem 0.78rem 2.6rem;
+      border: 1px solid #c8a96e;
+      background: #fffef8;
+      border-radius: 6px;
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.05rem; color: #1a0f05;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .auth-input:focus {
+      border-color: #9d7a45;
+      box-shadow: 0 0 0 3px rgba(200,169,110,0.18);
+    }
+    .auth-input.error { border-color: #8b1a1a; }
+    .auth-input-icon {
+      position: absolute; left: 0.85rem; top: 50%; transform: translateY(-50%);
+      color: #c8a96e; pointer-events: none; font-size: 1rem; line-height: 1;
+    }
+    .auth-eye {
+      position: absolute; right: 0.85rem; top: 50%; transform: translateY(-50%);
+      background: none; border: none; color: #a67c52;
+      cursor: pointer; font-size: 0.9rem; padding: 2px;
+      transition: color 0.2s;
+    }
+    .auth-eye:hover { color: #4a2c0a; }
+    .auth-err {
+      font-size: 0.77rem; color: #8b1a1a;
+      font-style: italic; margin-top: 0.3rem;
+      min-height: 1.1em;
+    }
+
+    /* ── TWO-COL ROW ── */
+    .auth-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.9rem; }
+
+    /* ── SUBMIT BUTTON ── */
+    .auth-submit {
+      width: 100%; padding: 0.95rem 1rem; margin-top: 0.5rem;
+      background: #4a2c0a; color: #fffef8;
+      border: 1px solid #c8a96e;
+      border-radius: 6px;
+      font-family: 'IM Fell English', serif;
+      font-size: 1rem; letter-spacing: 0.1em;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.15s;
+      position: relative; overflow: hidden;
+    }
+    .auth-submit:hover:not(:disabled) { background: #9d7a45; }
+    .auth-submit:active:not(:disabled) { transform: scale(0.99); }
+    .auth-submit:disabled { opacity: 0.65; cursor: not-allowed; }
+
+    /* ── SPINNER INSIDE BTN ── */
+    .auth-spinner {
+      display: inline-block; width: 14px; height: 14px;
+      border: 2px solid rgba(255,254,248,0.4);
+      border-top-color: #fffef8; border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      vertical-align: middle; margin-right: 6px;
+    }
+
+    /* ── DIVIDER ── */
+    .auth-divider {
+      display: flex; align-items: center; gap: 0.8rem;
+      margin: 1.1rem 0;
+    }
+    .auth-divider::before, .auth-divider::after {
+      content: ''; flex: 1; height: 1px;
+      background: linear-gradient(90deg, transparent, #c8a96e, transparent);
+    }
+    .auth-divider span {
+      font-family: 'IM Fell English', serif;
+      font-size: 0.75rem; color: #a67c52;
+      letter-spacing: 0.15em; text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    /* ── SWITCH LINK ── */
+    .auth-switch {
+      text-align: center; margin-top: 1rem;
+      font-size: 0.9rem; color: #7a4f2a;
+      font-style: italic;
+    }
+    .auth-switch button {
+      background: none; border: none;
+      color: #9d7a45; font-weight: 600;
+      cursor: pointer; font-family: 'Cormorant Garamond', serif;
+      font-size: 0.9rem; text-decoration: underline;
+      font-style: normal;
+    }
+    .auth-switch button:hover { color: #4a2c0a; }
+
+    /* ── CLOSE BUTTON ── */
+    .auth-close {
+      position: absolute; top: 1rem; right: 1rem;
+      background: rgba(255,254,248,0.12); border: 1px solid rgba(200,169,110,0.3);
+      color: rgba(200,169,110,0.8); font-size: 1rem;
+      width: 30px; height: 30px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; transition: all 0.2s; border-radius: 1px;
+    }
+    .auth-close:hover { background: rgba(200,169,110,0.2); color: #c8a96e; }
+
+    /* ── SUCCESS MESSAGE ── */
+    .auth-success {
+      text-align: center; padding: 1rem 0 0.5rem;
+    }
+    .auth-success-icon { font-size: 3rem; margin-bottom: 0.8rem; }
+    .auth-success-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.5rem; font-weight: 700; color: #4a2c0a;
+      margin-bottom: 0.5rem;
+    }
+    .auth-success-sub {
+      font-size: 0.95rem; color: #7a4f2a;
+      font-style: italic; line-height: 1.7;
+    }
+
+    /* ── USER PILL in nav ── */
+    .nav-user-pill {
+      display: flex; align-items: center; gap: 0.5rem;
+      padding: 0.3rem 0.85rem;
+      border: 1px solid #c8a96e; background: transparent;
+      font-family: 'IM Fell English', serif;
+      font-size: 0.82rem; letter-spacing: 0.06em;
+      color: #4a2c0a; cursor: pointer;
+      transition: background 0.2s;
+      position: relative;
+    }
+    .nav-user-pill:hover { background: #e8dfd0; }
+    .nav-user-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: #2d7a4a; flex-shrink: 0;
+    }
+
+    /* ── USER DROPDOWN ── */
+    .user-dropdown {
+      position: absolute; top: calc(100% + 8px); right: 0;
+      background: #fffef8; border: 1px solid #e8dfd0;
+      border-top: 2px solid #c8a96e;
+      min-width: 200px;
+      box-shadow: 0 12px 40px rgba(74,44,10,0.18);
+      z-index: 600; display: none;
+    }
+    .user-dropdown.open { display: block; animation: fadeUp 0.2s ease; }
+    .user-dropdown-name {
+      padding: 0.9rem 1.2rem 0.6rem;
+      font-family: 'Playfair Display', serif;
+      font-weight: 700; color: #4a2c0a; font-size: 1rem;
+      border-bottom: 1px solid #e8dfd0;
+    }
+    .user-dropdown-email {
+      padding: 0 1.2rem 0.8rem;
+      font-size: 0.78rem; color: #a67c52;
+      font-style: italic; border-bottom: 1px solid #e8dfd0;
+    }
+    .user-dropdown-item {
+      display: block; width: 100%; padding: 0.65rem 1.2rem;
+      background: none; border: none; text-align: left;
+      font-family: 'IM Fell English', serif;
+      font-size: 0.88rem; letter-spacing: 0.06em;
+      color: #7a4f2a; cursor: pointer;
+      transition: background 0.15s;
+    }
+    .user-dropdown-item:hover { background: #f5f0e8; color: #4a2c0a; }
+    .user-dropdown-item.danger { color: #8b1a1a; }
+    .user-dropdown-item.danger:hover { background: #fef0f0; }
+
+    /* ── ORNAMENT BADGE on auth card ── */
+    .auth-ornament {
+      display: flex; align-items: center; gap: 0.6rem;
+      margin-bottom: 1.2rem;
+    }
+    .auth-ornament::before, .auth-ornament::after {
+      content: ''; flex: 1; height: 1px; background: #e8dfd0;
+    }
+    .auth-ornament span {
+      font-family: 'IM Fell English', serif;
+      font-size: 0.7rem; letter-spacing: 0.2em;
+      text-transform: uppercase; color: #c8a96e;
+    }
+
+    /* ── FORGOT PASSWORD LINK ── */
+    .auth-forgot {
+      text-align: right; margin-top: -0.6rem; margin-bottom: 0.8rem;
+    }
+    .auth-forgot button {
+      background: none; border: none;
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 0.85rem; color: #9d7a45;
+      cursor: pointer; font-style: italic;
+      text-decoration: underline;
+    }
+    .auth-forgot button:hover { color: #4a2c0a; }
+
+    /* ── TERMS CHECKBOX ── */
+    .auth-check {
+      display: flex; align-items: flex-start; gap: 0.6rem;
+      margin-bottom: 0.8rem;
+    }
+    .auth-check input[type=checkbox] {
+      width: 16px; height: 16px; margin-top: 3px; flex-shrink: 0;
+      accent-color: #4a2c0a; cursor: pointer;
+    }
+    .auth-check label {
+      font-size: 0.83rem; color: #7a4f2a; line-height: 1.5;
+      cursor: pointer;
+    }
+    .auth-check label a { color: #9d7a45; }
+
+    /* ── ALERT BANNER ── */
+    .auth-alert {
+      padding: 0.75rem 1rem; margin-bottom: 1rem;
+      border-left: 3px solid;
+      font-size: 0.88rem; line-height: 1.5; font-style: italic;
+    }
+    .auth-alert.error   { background: #fef5f5; border-color: #8b1a1a; color: #8b1a1a; }
+    .auth-alert.success { background: #f0f7f0; border-color: #2d7a4a; color: #2d7a4a; }
+    .auth-alert.info    { background: #f5f0e8; border-color: #c8a96e; color: #7a4f2a; }
+
+    @media (max-width: 520px) {
+      .auth-card { max-width: 100%; }
+      .auth-body { padding: 1.4rem 1.4rem 1.6rem; }
+      .auth-deco { padding: 1.4rem 1.4rem 1.1rem; }
+      .auth-row2 { grid-template-columns: 1fr; }
+    }
+  </style>
+  <style>
+    /* ── NAV LOGO WITH IMAGE ── */
+    .nav-logo {
+      display: flex !important;
+      align-items: center;
+      gap: 0.55rem;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 0;
+    }
+    .nav-logo-img {
+      width: 42px;
+      height: 42px;
+      object-fit: cover;
+      border-radius: 10px;
+      border: 1.5px solid #c8a96e;
+      box-shadow: 0 2px 8px rgba(74,44,10,0.18);
+      flex-shrink: 0;
+    }
+    .nav-logo-text {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.35rem;
+      font-weight: 900;
+      color: #4a2c0a;
+      letter-spacing: 0.04em;
+    }
+    .nav-logo-text span {
+      color: #9d7a45;
+      font-style: italic;
+    }
+    @media (max-width: 640px) {
+      .nav-logo-img { width: 36px; height: 36px; border-radius: 8px; }
+      .nav-logo-text { font-size: 1.15rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Toast -->
+  <div id="toast" class="toast" aria-live="polite"></div>
+
+  <!-- AUTH MODAL -->
+  <div id="auth-overlay" class="auth-overlay" onclick="handleAuthOverlayClick(event)">
+    <div class="auth-card" role="dialog" aria-modal="true" aria-label="Authentication">
+      <!-- Decorative header -->
+      <div class="auth-deco">
+        <button class="auth-close" onclick="closeAuth()" aria-label="Close">✕</button>
+        <div class="auth-deco-logo">Mellow <span>Co.</span></div>
+        <div class="auth-deco-sub">✦ &nbsp; Artisan Mexican Desserts &nbsp; ✦</div>
+      </div>
+      <!-- Tabs -->
+      <div class="auth-tabs">
+        <button class="auth-tab active" id="tab-login"  onclick="switchAuthTab('login')">Sign In</button>
+        <button class="auth-tab"        id="tab-signup" onclick="switchAuthTab('signup')">Create Account</button>
+      </div>
+      <!-- Body (populated by JS) -->
+      <div class="auth-body" id="auth-body"></div>
+    </div>
+  </div>
+
+  <!-- Fixed Nav -->
+  <nav id="nav"></nav>
+
+  <!-- Cart Backdrop -->
+  <div id="cart-backdrop" class="cart-backdrop" onclick="closeCart()"></div>
+
+  <!-- Cart Drawer -->
+  <aside id="cart-drawer" class="cart-drawer" aria-label="Shopping Cart"></aside>
+
+  <!-- Page Container -->
+  <div id="page-wrap">
+    <main id="main"></main>
+  </div>
+
+  <!-- Extra styles for payment / location / invoice -->
+  <style>
+    /* ── LOCATION BUTTON ── */
+    .location-btn {
+      display: inline-flex; align-items: center; gap: 0.5rem;
+      padding: 0.65rem 1.1rem;
+      background: #f5f0e8; color: #4a2c0a;
+      border: 1px dashed #c8a96e;
+      font-family: 'IM Fell English', serif;
+      font-size: 0.88rem; letter-spacing: 0.06em;
+      cursor: pointer; transition: all 0.2s;
+      width: 100%;
+    }
+    .location-btn:hover { background: #e8dfd0; border-style: solid; }
+    .location-status {
+      padding: 0.65rem 1rem;
+      border: 1px solid;
+      font-family: 'IM Fell English', serif;
+      font-size: 0.88rem; letter-spacing: 0.04em;
+    }
+    .location-status.detecting { background: #f5f0e8; border-color: #c8a96e; color: #7a4f2a; }
+    .location-status.granted   { background: #f0f7f0; border-color: #2d7a4a; color: #2d7a4a; }
+    .location-status.denied    { background: #fef5f5; border-color: #8b1a1a; color: #8b1a1a; }
+
+    /* ── UPI QR PANEL ── */
+    .upi-apps-row {
+      display: flex; gap: 1.2rem; justify-content: center;
+      flex-wrap: wrap; margin-bottom: 0.8rem;
+    }
+    .upi-app-btn {
+      display: flex; align-items: center; gap: 0.4rem;
+      padding: 0.5rem 0.9rem;
+      border: 1px solid #e8dfd0; background: #f5f0e8;
+      font-family: 'IM Fell English', serif;
+      font-size: 0.82rem; color: #4a2c0a; cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .upi-app-btn:hover { border-color: #c8a96e; background: #e8dfd0; }
+
+    /* ── PAYMENT PROCESSING OVERLAY ── */
+    .payment-processing-overlay {
+      position: fixed; inset: 0; z-index: 3000;
+      background: rgba(26,15,5,0.8);
+      backdrop-filter: blur(4px);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .payment-processing-card {
+      background: #fffef8; border-top: 4px solid #c8a96e;
+      padding: 2.5rem 3rem; text-align: center;
+      max-width: 360px; width: 90%;
+    }
+    .payment-spinner-large {
+      width: 52px; height: 52px;
+      border: 4px solid #e8dfd0; border-top-color: #c8a96e;
+      border-radius: 50%; animation: spin 0.9s linear infinite;
+      margin: 0 auto 1.2rem;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── SUCCESS PAGE ENHANCEMENTS ── */
+    .success-wrap { max-width: 560px; margin: 0 auto; text-align: center; padding: 4rem 2rem; }
+    .success-icon { font-size: 4.5rem; margin-bottom: 1rem; }
+    .success-details {
+      background: #f5f0e8; border: 1px solid #e8dfd0;
+      border-top: 3px solid #c8a96e;
+      padding: 1.5rem; margin: 1.5rem 0; text-align: left;
+    }
+
+    /* ── INVOICE DOWNLOAD BTN ── */
+    .invoice-btn {
+      display: inline-flex; align-items: center; gap: 0.5rem;
+      padding: 0.85rem 1.8rem;
+      background: #4a2c0a; color: #fffef8;
+      border: 1px solid #c8a96e;
+      font-family: 'IM Fell English', serif;
+      font-size: 1rem; letter-spacing: 0.08em;
+      cursor: pointer; transition: background 0.2s;
+    }
+    .invoice-btn:hover { background: #9d7a45; }
+  </style>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="app.js"></script>
+  <script src="auth.js"></script>
+  <!-- Razorpay is loaded dynamically by payment.js -->
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+  <script src="payment.js"></script>
+
+  <!-- ✦ Soft ambient glitter particles ✦ -->
+  <canvas id="glitter-canvas" style="position:fixed;top:0;left:0;pointer-events:none;z-index:9998;width:100%;height:100%"></canvas>
+  <script>
+  (function(){
+    const canvas = document.getElementById('glitter-canvas');
+    const ctx = canvas.getContext('2d');
+    let W, H;
+    function resize(){ W = canvas.width = innerWidth; H = canvas.height = innerHeight; }
+    resize();
+    window.addEventListener('resize', resize);
+
+    const COLORS = ['#c8a96e','#e8dfd0','#fffef8','#9d7a45','#d4b896'];
+
+    function Particle() {
+      this.reset = function(fromBottom) {
+        this.x     = Math.random() * W;
+        this.y     = fromBottom ? H + 10 : Math.random() * H;
+        this.r     = Math.random() * 1.8 + 0.4;
+        this.vx    = (Math.random() - 0.5) * 0.25;
+        this.vy    = -(Math.random() * 0.35 + 0.08);
+        this.alpha = Math.random() * 0.45 + 0.08;
+        this.color = COLORS[Math.floor(Math.random() * COLORS.length)];
+        this.twinkle = Math.random() * Math.PI * 2;
+        this.twinkleSpeed = 0.02 + Math.random() * 0.03;
+        this.life = 0;
+        this.maxLife = 280 + Math.random() * 320;
+      };
+      this.reset(false);
+    }
+
+    const particles = Array.from({length: 70}, () => new Particle());
+
+    function tick() {
+      ctx.clearRect(0, 0, W, H);
+      particles.forEach(p => {
+        p.x += p.vx;
+        p.y += p.vy;
+        p.life++;
+        p.twinkle += p.twinkleSpeed;
+        const fade = p.life < 40 ? p.life / 40
+                   : p.life > p.maxLife - 40 ? (p.maxLife - p.life) / 40
+                   : 1;
+        const twinkleFactor = 0.6 + 0.4 * Math.sin(p.twinkle);
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fillStyle = p.color;
+        ctx.globalAlpha = p.alpha * fade * twinkleFactor;
+        ctx.fill();
+        if (p.life >= p.maxLife || p.y < -10) p.reset(true);
+      });
+      ctx.globalAlpha = 1;
+      requestAnimationFrame(tick);
+    }
+    tick();
+  })();
+  </script>
+</body>
+</html>
