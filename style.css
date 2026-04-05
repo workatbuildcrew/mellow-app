@@ -162,17 +162,21 @@ input, textarea, select { font-family: 'Cormorant Garamond', serif; font-size: 1
 /* Mobile Nav */
 .nav-hamburger {
   display: none; background: none; border: none;
-  flex-direction: column; gap: 5px; padding: 8px;
+  flex-direction: column; gap: 5px; padding: 10px;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+  min-width: 44px; min-height: 44px;
+  align-items: center; justify-content: center;
 }
 .nav-hamburger span {
   display: block; width: 26px; height: 2px;
   background: var(--brown); border-radius: 2px; transition: all 0.3s;
+  pointer-events: none;
 }
 .nav-mobile-menu {
   display: none; position: fixed;
   top: var(--nav-h); left: 0; right: 0;
   background: var(--white); border-bottom: 2px solid var(--gold);
-  z-index: 499; flex-direction: column;
+  z-index: 9000; flex-direction: column;
   padding: 1.2rem 2rem; gap: 0.6rem;
   box-shadow: 0 12px 32px rgba(74,44,10,0.12);
   animation: fadeIn 0.2s ease;
@@ -187,6 +191,7 @@ input, textarea, select { font-family: 'Cormorant Garamond', serif; font-size: 1
 }
 .nav-mobile-link.active { color: var(--gold-dk); }
 .nav-mobile-link:hover { color: var(--gold-dk); }
+.nav-mobile-link { cursor: pointer; }
 
 /* ══════════════════════════════════════════════
    TOAST

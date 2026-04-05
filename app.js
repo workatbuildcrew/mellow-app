@@ -397,14 +397,22 @@ function buildMobileNav() {
     {key:'home',label:'Home'},{key:'about',label:'About'},
     {key:'desserts',label:'Desserts'},{key:'blog',label:'Journal'},{key:'contact',label:'Contact'},
   ];
+  const cnt = cartCount();
   return `
     <div class="nav-mobile-menu${S.navOpen?' open':''}">
       ${links.map(l=>`<button class="nav-mobile-link${S.page===l.key?' active':''}" onclick="navigate('${l.key}')">${l.label}</button>`).join('')}
-      <button class="btn-primary" style="margin-top:0.5rem" onclick="navigate('desserts')">Order Now</button>
+      <div style="display:flex;gap:0.8rem;margin-top:0.6rem;padding-top:0.6rem;border-top:1px solid var(--cream-dk)">
+        <button class="btn-primary" style="flex:1;padding:0.7rem;justify-content:center;font-size:0.9rem" onclick="navigate('desserts')">Order Now</button>
+        <button class="btn-cart" style="position:relative;padding:0.7rem 1rem" onclick="closeNav();openCart()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+          ${cnt>0 ? `<span class="cart-badge">${cnt}</span>` : ''}
+        </button>
+      </div>
     </div>
   `;
 }
 
+function closeNav() { S.navOpen = false; renderNav(); }
 function toggleNav() { S.navOpen=!S.navOpen; renderNav(); }
 
 /* ── ORNAMENT ── */
