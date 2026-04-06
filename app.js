@@ -386,7 +386,7 @@ function buildNav() {
         ${cnt>0 ? `<span class="cart-badge">${cnt}</span>` : ''}
       </button>
     </div>
-    <button class="nav-hamburger" onclick="toggleNav()" aria-label="Menu">
+    <button class="nav-hamburger${S.navOpen?' open':''}" onclick="toggleNav()" aria-label="Menu" aria-expanded="${S.navOpen}">
       <span></span><span></span><span></span>
     </button>
   `;
@@ -398,14 +398,20 @@ function buildMobileNav() {
     {key:'desserts',label:'Desserts'},{key:'blog',label:'Journal'},{key:'contact',label:'Contact'},
   ];
   const cnt = cartCount();
+  const user = (typeof AUTH !== 'undefined' && AUTH.user);
   return `
-    <div class="nav-mobile-menu${S.navOpen?' open':''}">
-      ${links.map(l=>`<button class="nav-mobile-link${S.page===l.key?' active':''}" onclick="navigate('${l.key}')">${l.label}</button>`).join('')}
-      <div style="display:flex;gap:0.8rem;margin-top:0.6rem;padding-top:0.6rem;border-top:1px solid var(--cream-dk)">
-        <button class="btn-primary" style="flex:1;padding:0.7rem;justify-content:center;font-size:0.9rem" onclick="navigate('desserts')">Order Now</button>
-        <button class="btn-cart" style="position:relative;padding:0.7rem 1rem" onclick="closeNav();openCart()">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
-          ${cnt>0 ? `<span class="cart-badge">${cnt}</span>` : ''}
+    <div class="nav-mobile-overlay${S.navOpen?' open':''}" onclick="closeNav()"></div>
+    <div class="nav-mobile-menu${S.navOpen?' open':''}" role="dialog" aria-modal="true">
+      <button class="nav-mobile-close" onclick="closeNav()" aria-label="Close">✕</button>
+      <div class="nav-mobile-links">
+        ${links.map(l=>`<button class="nav-mobile-link${S.page===l.key?' active':''}" onclick="navigate('${l.key}')">${l.label}</button>`).join('')}
+        ${user ? `<button class="nav-mobile-link${S.page==='profile'?' active':''}" onclick="navigate('profile')">My Account</button>` : ''}
+      </div>
+      <div class="nav-mobile-actions">
+        <button class="nav-mobile-btn-order" onclick="navigate('desserts')">Order Now</button>
+        <button class="nav-mobile-btn-cart" onclick="closeNav();openCart()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+          Cart${cnt > 0 ? ` (${cnt})` : ''}
         </button>
       </div>
     </div>
@@ -413,7 +419,7 @@ function buildMobileNav() {
 }
 
 function closeNav() { S.navOpen = false; renderNav(); }
-function toggleNav() { S.navOpen=!S.navOpen; renderNav(); }
+function toggleNav() { S.navOpen = !S.navOpen; renderNav(); }
 
 /* ── ORNAMENT ── */
 function OrnDiv(text='✦') {
@@ -1651,9 +1657,10 @@ async function saveProfileChanges() {
    ══════════════════════════════════════════════ */
 function renderNav() {
   const nav = document.getElementById('nav');
-  if(nav) {
-    nav.innerHTML = buildNav() + buildMobileNav();
-  }
+  if(nav) nav.innerHTML = buildNav();
+
+  const mobileNav = document.getElementById('mobile-nav');
+  if(mobileNav) mobileNav.innerHTML = buildMobileNav();
 }
 
 function renderCart() {
@@ -1699,7 +1706,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Close mobile menu on outside click
 document.addEventListener('click', e => {
-  if(S.navOpen && !e.target.closest('#nav')) {
+  if(S.navOpen && !e.target.closest('.nav-mobile-menu') && !e.target.closest('.nav-hamburger')) {
     S.navOpen = false;
     renderNav();
   }
