@@ -1,5 +1,9 @@
 # Mellow Co. — Netlify Configuration
-
+[[redirects]]
+  from = "https://mellow-co.netlify.app"
+  to   = "https://mellow-co.netlify.app/"
+  status = 301
+  force  = true
 [build]
   publish = "."
   functions = "netlify/functions"
