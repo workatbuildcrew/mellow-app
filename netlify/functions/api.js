@@ -17,7 +17,8 @@ const SUPABASE_SERVICE    = process.env.SUPABASE_SERVICE    || '';
 const SMTP_EMAIL          = process.env.SMTP_EMAIL          || '';
 const SMTP_PASSWORD       = process.env.SMTP_PASSWORD       || '';
 
-const SITE_URL = 'https://mellow-desserts.netlify.app';
+const SITE_URL     = 'https://mellow-desserts.netlify.app';
+const DESSERTS_URL = 'https://mellow-desserts.netlify.app/#desserts';
 
 // ── HELPERS ─────────────────────────────────────────────────────
 
@@ -360,17 +361,34 @@ async function newsletterSubscribe(body) {
   }
 }
 
-// 13. Confirm COD Payment (admin)
+// 13. Confirm COD Payment (admin) + send delivery email
 async function confirmCodPayment(body) {
   const orderId = (body.order_id || '').trim();
   if (!orderId) return jsonResponse(400, { error: 'order_id required' });
   try {
+    // First fetch the order so we have customer details for the email
+    const fetchRes = await supabase('GET', `/orders?order_id=eq.${orderId}&select=*`);
+    const order    = fetchRes.data && fetchRes.data[0];
+
+    // Update status in DB
     await supabase('PATCH', `/orders?order_id=eq.${orderId}`, {
       payment_status: 'paid',
       status:         'delivered',
       updated_at:     new Date().toISOString(),
     }, { 'Prefer': 'return=minimal' });
+
     console.log(`✅ COD confirmed: ${orderId}`);
+
+    // Send delivery confirmation email (non-blocking)
+    if (order && order.customer_email) {
+      const html = buildCodDeliveryEmail(order);
+      sendEmail(
+        order.customer_email,
+        `Your Mellow Co. Order #${orderId} has been Delivered! 🍮`,
+        html
+      ).catch(err => console.error('COD delivery email failed:', err.message));
+    }
+
     return jsonResponse(200, { ok: true });
   } catch (err) {
     return jsonResponse(500, { error: err.message });
@@ -460,7 +478,7 @@ function buildWelcomeEmail(name) {
       We're thrilled to welcome you to the Mellow Circle. You now have access to over
       <strong style="color:#4a2c0a">25 handcrafted Mexican desserts</strong> — made with love, tradition, and care.
     </p>
-    <a href="${SITE_URL}"
+    <a href="${DESSERTS_URL}"
       style="display:inline-block;background:#4a2c0a;color:#fffef8;padding:14px 32px;
              text-decoration:none;font-size:14px;letter-spacing:2px;text-transform:uppercase;border:1px solid #c8a96e">
       EXPLORE DESSERTS →
@@ -507,7 +525,7 @@ function buildOrderEmail(order) {
     <div style="text-align:right;padding:12px 0;border-top:2px solid #c8a96e">
       <span style="font-size:16px;font-weight:700;color:#4a2c0a">Total: ₹${Number(order.total||0).toLocaleString('en-IN')}</span>
     </div>
-    <a href="${SITE_URL}"
+    <a href="${DESSERTS_URL}"
       style="display:inline-block;margin-top:20px;background:#4a2c0a;color:#fffef8;padding:12px 28px;
              text-decoration:none;font-size:13px;letter-spacing:2px;text-transform:uppercase;border:1px solid #c8a96e">
       Shop More →
@@ -544,7 +562,7 @@ function buildNewsletterEmail(name, email, code, pct) {
       <div style="font-size:32px;font-weight:900;color:#4a2c0a;letter-spacing:4px">${code}</div>
       <div style="font-size:13px;color:#7a4f2a;margin-top:10px">${pct}% off · One-time use · Valid 30 days</div>
     </div>
-    <a href="${SITE_URL}"
+    <a href="${DESSERTS_URL}"
       style="display:inline-block;background:#4a2c0a;color:#fffef8;padding:14px 32px;
              text-decoration:none;font-size:14px;letter-spacing:2px;text-transform:uppercase;border:1px solid #c8a96e">
       Shop Now →
@@ -554,6 +572,110 @@ function buildNewsletterEmail(name, email, code, pct) {
     <p style="margin:0;font-size:11px;color:#a67c52;letter-spacing:2px;text-transform:uppercase">✦ Mellow Co. · Coimbatore, Tamil Nadu ✦</p>
     <p style="margin:8px 0 0;font-size:10px;color:#c0a882">Subscribed with ${email}</p>
   </td></tr>
+</table>
+</td></tr></table>
+</body></html>`;
+}
+
+function buildCodDeliveryEmail(order) {
+  const items     = Array.isArray(order.items) ? order.items : [];
+  const itemsHtml = items.map(item => `
+    <tr>
+      <td style="padding:8px 0;border-bottom:1px solid #e8dfd0;color:#4a2c0a;font-size:14px">${item.name || item.product_name || 'Item'}</td>
+      <td style="padding:8px 0;border-bottom:1px solid #e8dfd0;color:#7a4f2a;text-align:center">×${item.qty || item.quantity || 1}</td>
+      <td style="padding:8px 0;border-bottom:1px solid #e8dfd0;color:#9d7a45;text-align:right;font-weight:700">₹${(item.total || 0).toLocaleString('en-IN')}</td>
+    </tr>`).join('');
+
+  return `<!DOCTYPE html>
+<html><head><meta charset="UTF-8"/></head>
+<body style="margin:0;padding:0;background:#f5f0e8;font-family:'Georgia',serif">
+<table width="100%" cellpadding="0" cellspacing="0">
+<tr><td align="center" style="padding:48px 20px">
+<table width="600" cellpadding="0" cellspacing="0"
+  style="background:#fffef8;border:1px solid #e8dfd0;border-top:4px solid #c8a96e;max-width:600px">
+
+  <!-- Header -->
+  <tr><td style="background:linear-gradient(135deg,#4a2c0a,#7a4f2a,#4a2c0a);padding:32px 36px">
+    <h1 style="margin:0;color:#fffef8;font-size:28px">Mellow <span style="color:#c8a96e;font-style:italic">Co.</span></h1>
+    <p style="margin:6px 0 0;color:rgba(200,169,110,0.75);font-size:11px;letter-spacing:4px;text-transform:uppercase">✦ Order Delivered ✦</p>
+  </td></tr>
+  <tr><td style="height:3px;background:linear-gradient(90deg,#c8a96e,#9d7a45,#c8a96e)"></td></tr>
+
+  <!-- Body -->
+  <tr><td style="padding:40px 36px">
+
+    <!-- Delivery badge -->
+    <div style="text-align:center;margin-bottom:28px">
+      <div style="display:inline-block;background:#e8f5e9;border:1px solid #4caf50;
+                  border-radius:50px;padding:10px 28px">
+        <span style="color:#2e7d32;font-size:15px;font-weight:700;letter-spacing:1px">
+          ✅ &nbsp; Successfully Delivered
+        </span>
+      </div>
+    </div>
+
+    <h2 style="margin:0 0 8px;color:#4a2c0a;font-size:22px">
+      Your order has arrived, ${order.customer_name || 'Customer'}!
+    </h2>
+    <p style="color:#7a4f2a;font-size:15px;margin:0 0 24px;line-height:1.7">
+      Your Mellow Co. order <strong style="color:#4a2c0a">#${order.order_id}</strong> has been
+      delivered and payment has been collected. Thank you for choosing us!
+    </p>
+
+    <!-- Order summary -->
+    <div style="background:#f9f6f0;border:1px solid #e8dfd0;border-radius:4px;padding:20px;margin-bottom:24px">
+      <div style="font-size:11px;letter-spacing:3px;text-transform:uppercase;color:#a67c52;margin-bottom:14px">
+        Order Summary
+      </div>
+      <table width="100%" cellpadding="0" cellspacing="0">
+        ${itemsHtml}
+      </table>
+      <div style="text-align:right;padding:12px 0 0;border-top:2px solid #c8a96e;margin-top:8px">
+        <span style="font-size:16px;font-weight:700;color:#4a2c0a">
+          Total Paid: ₹${Number(order.total || 0).toLocaleString('en-IN')}
+        </span>
+      </div>
+    </div>
+
+    <!-- Payment info row -->
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px">
+      <tr>
+        <td style="padding:12px;background:#fff8e8;border:1px solid #e8dfd0;width:50%;text-align:center">
+          <div style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#a67c52">Payment Method</div>
+          <div style="font-size:14px;color:#4a2c0a;font-weight:700;margin-top:4px;text-transform:uppercase">
+            ${order.payment_method || 'COD'}
+          </div>
+        </td>
+        <td style="width:8px"></td>
+        <td style="padding:12px;background:#e8f5e9;border:1px solid #c8e6c9;width:50%;text-align:center">
+          <div style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#388e3c">Payment Status</div>
+          <div style="font-size:14px;color:#2e7d32;font-weight:700;margin-top:4px">✅ PAID</div>
+        </td>
+      </tr>
+    </table>
+
+    <p style="color:#7a4f2a;font-size:14px;line-height:1.8;margin:0 0 24px">
+      We hope you enjoyed your Mellow Co. desserts! Your feedback means the world to us.
+      If you have any questions, just reply to this email.
+    </p>
+
+    <a href="${DESSERTS_URL}"
+      style="display:inline-block;background:#4a2c0a;color:#fffef8;padding:14px 32px;
+             text-decoration:none;font-size:14px;letter-spacing:2px;text-transform:uppercase;border:1px solid #c8a96e">
+      Order Again →
+    </a>
+  </td></tr>
+
+  <!-- Footer -->
+  <tr><td style="padding:20px 36px;border-top:1px solid #e8dfd0;background:#f9f6f0;text-align:center">
+    <p style="margin:0;font-size:11px;color:#a67c52;letter-spacing:2px;text-transform:uppercase">
+      ✦ Mellow Co. · Coimbatore, Tamil Nadu ✦
+    </p>
+    <p style="margin:6px 0 0;font-size:11px;color:#c0a882;font-style:italic">
+      Crafted with love for dessert lovers everywhere
+    </p>
+  </td></tr>
+
 </table>
 </td></tr></table>
 </body></html>`;
