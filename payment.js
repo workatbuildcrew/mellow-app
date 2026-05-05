@@ -9,7 +9,7 @@
    Secrets live in server.py, NOT here.
 ───────────────────────────────────────────── */
 const MELLOW_CONFIG = {
-  RAZORPAY_KEY_ID: 'rzp_live_SYimvpChyTjZeQ',   // Key ID is public-safe
+  RAZORPAY_KEY_ID: 'rzp_live_SZl0EQ7zDZTDr1',   // Key ID is public-safe
   MERCHANT_NAME:   'Mellow Co.',
   MERCHANT_UPI_ID: 'mathubharathi15@oksbi',
   BUSINESS_ADDRESS:'Coimbatore, Tamil Nadu, India',
