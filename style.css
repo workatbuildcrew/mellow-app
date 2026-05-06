@@ -37,6 +37,8 @@ body {
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
 }
 img { display: block; max-width: 100%; }
 button { cursor: pointer; }
@@ -1242,8 +1244,8 @@ details p { margin-top: 1rem; font-size: 1rem; line-height: 1.85; color: var(--b
 
   .hero-stats { grid-template-columns: repeat(2, 1fr); }
 
-  .featured-grid { grid-template-columns: 1fr; }
-  .featured-section { padding: 4rem 1.5rem; }
+  .featured-grid { grid-template-columns: repeat(2, 1fr); gap: 1rem; }
+  .featured-section { padding: 4rem 1rem; }
 
   .testimonials-grid { grid-template-columns: 1fr; }
   .testimonials-section { padding: 4rem 1.5rem; }

@@ -709,6 +709,7 @@ exports.handler = async (event) => {
     case '/api/save-order-item':       return saveOrderItem(body);
     case '/api/save-newsletter':       return saveNewsletter(body);
     case '/api/save-feedback':         return saveFeedback(body);
+    case '/api/feedback':              return saveFeedback(body);
     case '/api/validate-discount':     return validateDiscount(body);
     case '/api/use-discount':          return useDiscount(body);
     case '/api/send-email':            return sendEmailRoute(body);

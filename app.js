@@ -275,6 +275,16 @@ function saveDeliveryToLocal() {
   } catch {}
 }
 
+/* ── Clear delivery address fields so user can enter a fresh address ── */
+function clearDeliveryForm() {
+  S.form.address = '';
+  S.form.city    = '';
+  S.form.pin     = '';
+  S.form.state   = 'Tamil Nadu';
+  try { localStorage.removeItem('mellow_delivery'); } catch {}
+  renderPage();
+}
+
 /* ── Cart Computed ── */
 function cartItems()  { return ALL_PRODUCTS.filter(p => (S.cart[p.id]||0) > 0); }
 function cartCount()  { return Object.values(S.cart).reduce((a,b)=>a+b,0); }
@@ -300,8 +310,8 @@ function navigate(pg) {
   S.page = pg;
   if(pg==='desserts') { S.storeView='store'; S.checkStep=1; }
   S.navOpen = false;
-  // Update URL hash so refresh stays on current page
-  history.replaceState(null, '', '#' + pg);
+  // pushState so browser back button works between pages
+  history.pushState({ page: pg }, '', '#' + pg);
   window.scrollTo({top:0,behavior:'smooth'});
   render();
 }
@@ -359,7 +369,15 @@ function updateCardQty(id) {
 function openCart()  { S.cartOpen=true;  renderCart(); document.getElementById('cart-backdrop').classList.add('open'); document.getElementById('cart-drawer').classList.add('open'); }
 function closeCart() { S.cartOpen=false; document.getElementById('cart-backdrop').classList.remove('open'); document.getElementById('cart-drawer').classList.remove('open'); }
 
-function goCheckout() { closeCart(); navigate('desserts'); S.storeView='checkout'; S.checkStep=1; render(); }
+function goCheckout() {
+  closeCart();
+  navigate('desserts');
+  // Always prefill form from profile + localStorage before showing checkout
+  prefillFormFromProfile();
+  S.storeView='checkout';
+  S.checkStep=1;
+  render();
+}
 
 function validateDelivery() {
   const e={}, f=S.form;
@@ -436,8 +454,7 @@ function buildMobileNav() {
       <div class="nav-mobile-links">
         ${links.map(l=>`<button class="nav-mobile-link${S.page===l.key?' active':''}" onclick="navigate('${l.key}')">${l.label}</button>`).join('')}
         ${user ? `<button class="nav-mobile-link${S.page==='profile'?' active':''}" onclick="navigate('profile')">My Account</button>` : `
-          <button class="nav-mobile-link" onclick="closeNav();openAuth('login')" style="color:var(--brown)">Sign In</button>
-          <button class="nav-mobile-link" onclick="closeNav();openAuth('signup')" style="color:var(--gold-dk);font-weight:600">Sign Up</button>`}
+          <button class="nav-mobile-link" onclick="closeNav();openAuth('login')">Sign In</button>`}
       </div>
       <div class="nav-mobile-actions">
         <button class="nav-mobile-btn-order" onclick="navigate('desserts')">Order Now</button>
@@ -885,6 +902,8 @@ function CheckoutView() {
           </div>
           <button class="btn-primary" style="width:100%;padding:1rem;justify-content:center;margin-top:0.5rem"
             onclick="handleDeliveryContinue()">Continue to Payment →</button>
+          <button style="width:100%;padding:0.7rem;margin-top:0.6rem;background:none;border:1px solid var(--cream-dk);color:var(--brown-mid);cursor:pointer;font-family:'Cormorant Garamond',serif;font-size:0.9rem;letter-spacing:0.04em;border-radius:4px"
+            onclick="clearDeliveryForm()">📍 Use a different address</button>
         ` : `
           <span class="sec-eye" style="margin-bottom:1.2rem;display:block">✦ &nbsp; Payment Method</span>
           <div class="payment-tabs">
@@ -1730,7 +1749,22 @@ document.addEventListener('DOMContentLoaded', () => {
     S.page = hash;
     if (hash === 'desserts') { S.storeView = 'store'; S.checkStep = 1; }
   }
+  // Replace current history entry with proper state so back works from first page
+  history.replaceState({ page: S.page }, '', '#' + S.page);
   render();
+});
+
+// Handle browser back/forward buttons
+window.addEventListener('popstate', (e) => {
+  const validPages = ['home', 'about', 'desserts', 'blog', 'contact', 'profile'];
+  const pg = (e.state && e.state.page) || window.location.hash.replace('#','') || 'home';
+  if (validPages.includes(pg)) {
+    S.page = pg;
+    if (pg === 'desserts') { S.storeView = 'store'; S.checkStep = 1; }
+    S.navOpen = false;
+    window.scrollTo({top:0,behavior:'smooth'});
+    render();
+  }
 });
 
 // Close mobile menu on outside click

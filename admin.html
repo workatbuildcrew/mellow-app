@@ -1474,13 +1474,30 @@ async function renderCOD() {
 }
 
 async function confirmCODPaid(orderId) {
-  if (!confirm(`Confirm that cash was received for order #${orderId}?\nThis will mark it as PAID and DELIVERED.`)) return;
-  const res = await sbQuery('PATCH', `/rest/v1/orders?order_id=eq.${orderId}`, {
-    payment_status: 'paid',
-    status: 'delivered',
-    updated_at: new Date().toISOString(),
-  });
-  toast(`✅ Order #${orderId} marked as Paid + Delivered`);
+  if (!confirm(`Confirm that cash was received for order #${orderId}?\nThis will mark it as PAID and DELIVERED and send a delivery email to the customer.`)) return;
+  try {
+    const apiBase = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+      ? 'http://localhost:8000' : '';
+    const res  = await fetch(`${apiBase}/api/confirm-cod-payment`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ order_id: orderId }),
+    });
+    const data = await res.json();
+    if (data.ok) {
+      toast(`✅ Order #${orderId} marked Paid + Delivered — delivery email sent to customer`);
+    } else {
+      throw new Error(data.error || 'API call failed');
+    }
+  } catch(err) {
+    // Fallback: direct patch
+    await sbQuery('PATCH', `/rest/v1/orders?order_id=eq.${orderId}`, {
+      payment_status: 'paid',
+      status: 'delivered',
+      updated_at: new Date().toISOString(),
+    });
+    toast(`✅ Order #${orderId} marked as Paid + Delivered`);
+  }
   renderCOD();
 }
 
@@ -1729,12 +1746,38 @@ async function openOrderModal(orderId) {
 }
 
 async function updateOrderStatus(orderId) {
-  const status        = document.getElementById('status-select')?.value;
+  const status         = document.getElementById('status-select')?.value;
   const payment_status = document.getElementById('paystatus-select')?.value;
-  await sbQuery('PATCH', `/rest/v1/orders?order_id=eq.${orderId}`, {
-    status, payment_status, updated_at: new Date().toISOString()
-  });
-  toast(`✅ Order #${orderId} status updated`);
+
+  // If marking as delivered + paid, route through API so delivery email fires
+  if (status === 'delivered' && payment_status === 'paid') {
+    try {
+      const apiBase = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+        ? 'http://localhost:8000' : '';
+      const res  = await fetch(`${apiBase}/api/confirm-cod-payment`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ order_id: orderId }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        toast(`✅ Order #${orderId} marked Delivered — customer email sent`);
+      } else {
+        throw new Error(data.error || 'API call failed');
+      }
+    } catch(err) {
+      // Fallback: direct Supabase patch (email won't fire but status updates)
+      await sbQuery('PATCH', `/rest/v1/orders?order_id=eq.${orderId}`, {
+        status, payment_status, updated_at: new Date().toISOString()
+      });
+      toast(`✅ Order #${orderId} status updated (email may not have sent: ${err.message})`);
+    }
+  } else {
+    await sbQuery('PATCH', `/rest/v1/orders?order_id=eq.${orderId}`, {
+      status, payment_status, updated_at: new Date().toISOString()
+    });
+    toast(`✅ Order #${orderId} status updated`);
+  }
   closeModal();
 }
 
