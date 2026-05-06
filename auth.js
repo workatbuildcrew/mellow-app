@@ -639,7 +639,7 @@ async function fetchUserProfile(userId) {
       .select('*')
       .eq('id', userId)
       .single();
-    if (!error && data) AUTH.profile = data;
+    if (!error && data) { AUTH.profile = data; if (typeof prefillFormFromProfile === 'function') prefillFormFromProfile(); }
   } catch {
     // Non-fatal — profile may not exist yet
   }
@@ -654,6 +654,7 @@ async function restoreSession() {
     if (session?.user) {
       AUTH.user = session.user;
       await fetchUserProfile(session.user.id);
+      if (typeof prefillFormFromProfile === 'function') prefillFormFromProfile();
       renderNav(); // Update nav to show user pill
     }
   } catch (err) {

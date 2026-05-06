@@ -245,6 +245,36 @@ const S = {
   profileView: 'orders',   // 'orders' | 'settings'
 };
 
+/* ── Pre-fill delivery form from saved profile (called after login/session restore) ── */
+function prefillFormFromProfile() {
+  const p = AUTH?.profile || {};
+  const u = AUTH?.user || {};
+  // Only fill fields that are currently empty — never overwrite what user typed
+  if (!S.form.name  && p.name)  S.form.name  = p.name;
+  if (!S.form.email && (p.email || u.email)) S.form.email = p.email || u.email;
+  if (!S.form.phone && p.phone) S.form.phone = p.phone;
+  // Address fields from localStorage (persisted across sessions)
+  try {
+    const saved = JSON.parse(localStorage.getItem('mellow_delivery') || '{}');
+    if (!S.form.address && saved.address) S.form.address = saved.address;
+    if (!S.form.city    && saved.city)    S.form.city    = saved.city;
+    if (!S.form.state   && saved.state)   S.form.state   = saved.state;
+    if (!S.form.pin     && saved.pin)     S.form.pin     = saved.pin;
+  } catch {}
+}
+
+/* ── Persist delivery address to localStorage after user fills it ── */
+function saveDeliveryToLocal() {
+  try {
+    localStorage.setItem('mellow_delivery', JSON.stringify({
+      address: S.form.address,
+      city:    S.form.city,
+      state:   S.form.state,
+      pin:     S.form.pin,
+    }));
+  } catch {}
+}
+
 /* ── Cart Computed ── */
 function cartItems()  { return ALL_PRODUCTS.filter(p => (S.cart[p.id]||0) > 0); }
 function cartCount()  { return Object.values(S.cart).reduce((a,b)=>a+b,0); }
@@ -405,7 +435,9 @@ function buildMobileNav() {
       <button class="nav-mobile-close" onclick="closeNav()" aria-label="Close">✕</button>
       <div class="nav-mobile-links">
         ${links.map(l=>`<button class="nav-mobile-link${S.page===l.key?' active':''}" onclick="navigate('${l.key}')">${l.label}</button>`).join('')}
-        ${user ? `<button class="nav-mobile-link${S.page==='profile'?' active':''}" onclick="navigate('profile')">My Account</button>` : ''}
+        ${user ? `<button class="nav-mobile-link${S.page==='profile'?' active':''}" onclick="navigate('profile')">My Account</button>` : `
+          <button class="nav-mobile-link" onclick="closeNav();openAuth('login')" style="color:var(--brown)">Sign In</button>
+          <button class="nav-mobile-link" onclick="closeNav();openAuth('signup')" style="color:var(--gold-dk);font-weight:600">Sign Up</button>`}
       </div>
       <div class="nav-mobile-actions">
         <button class="nav-mobile-btn-order" onclick="navigate('desserts')">Order Now</button>
@@ -860,9 +892,6 @@ function CheckoutView() {
               <button class="pay-tab${S.payMethod===m?' active':''}" onclick="setPayMethod('${m}')">${l}</button>`).join('')}
           </div>
           ${S.payMethod==='upi' ? `
-            <div class="upi-apps">
-              ${['📱 GPay','💜 PhonePe','🟦 Paytm','🔵 BHIM'].map(a=>`<div class="upi-app">${a}</div>`).join('')}
-            </div>
             <div class="form-group">
               <label class="form-label">UPI ID</label>
               <input class="form-input${e.upi?' error':''}" type="text" placeholder="yourname@upi"
@@ -988,7 +1017,7 @@ function handleFormBlur() {
   // No re-render needed, state is already updated
 }
 function handleDeliveryContinue() {
-  if(validateDelivery()) { S.checkStep=2; renderPage(); window.scrollTo({top:0,behavior:'smooth'}); }
+  if(validateDelivery()) { saveDeliveryToLocal(); S.checkStep=2; renderPage(); window.scrollTo({top:0,behavior:'smooth'}); }
   else { renderPage(); }
 }
 function setPayMethod(m) {
